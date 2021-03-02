@@ -1,0 +1,353 @@
+ # Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ #
+ # Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ # software and associated documentation files (the "Software"), to deal in the Software
+ # without restriction, including without limitation the rights to use, copy, modify,
+ # merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ # permit persons to whom the Software is furnished to do so.
+ #
+ # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ # INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+ # PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ # HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  amazon-ec2-autoscaling-lifecycle-hook-lambda-example
+  
+  Sample CloudFormation template that deploys an Auto Scaling Group with Lifecycle Hooks that are managed from User Data. 
+
+Parameters:
+  AmiId:
+    Description: AMI Id
+    Type: String
+    Default: ami-09c5e030f74651050
+  AutoScalingGroupName:
+    Description: TBD
+    Type: String
+    Default: Example Auto Scaling Group
+  AutoScalingGroupMinSize:
+    Description: TBD
+    Type: Number
+    Default: 0
+  AutoScalingGroupMaxSize:
+    Description: TBD
+    Type: Number
+    Default: 2
+  AutoScalingGroupDesiredCapacity:
+    Description: TBD
+    Type: Number
+    Default: 0
+  InstanceType:
+    Description: Amazon EC2 Instance Type
+    Type: String
+    Default: "t2.micro"
+  InstanceKeyPair: 
+    Description: Amazon EC2 Key Pair
+    Type: "AWS::EC2::KeyPair::KeyName"
+  LifecycleHookName:
+    Description: TBD
+    Type: String
+    Default: "app-install-hook"
+  VpcCIDR: 
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+  AvailabilityZone1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+  AvailabilityZone2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+  AvailabilityZone3CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the third Availability Zone
+    Type: String
+    Default: 10.192.12.0/24
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups:
+    - 
+      Label: 
+        default: "VPC Configuration"
+      Parameters: 
+        - VpcCIDR
+        - AvailabilityZone1CIDR
+        - AvailabilityZone2CIDR
+        - AvailabilityZone3CIDR
+    -
+      Label:
+        default: "Instance Configuration"
+      Parameters:
+        - AmiId
+        - InstanceType
+        - InstanceKeyPair 
+    -
+      Label: 
+        default: "Auto Scaling Group Configuration"
+      Parameters: 
+        - AutoScalingGroupName
+        - AutoScalingGroupVpcID
+        - AutoScalingGroupSubnetIDs
+        - AutoScalingGroupMinSize
+        - AutoScalingGroupMaxSize
+        - AutoScalingGroupDesiredCapacity
+        - LifecycleHookName
+
+Resources:
+
+  # VPC/Networking Resources
+
+  VPC: 
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+          
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+          
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  AvailabilityZoneSubnet1: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone1CIDR
+      MapPublicIpOnLaunch: true
+
+  AvailabilityZoneSubnet2: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone2CIDR
+      MapPublicIpOnLaunch: true
+
+  AvailabilityZoneSubnet3: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone3CIDR
+      MapPublicIpOnLaunch: true
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      VpcId: !Ref VPC
+      GroupDescription: Instance Security Group
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+
+  DefaultPublicRoute: 
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties: 
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  AvailabilityZoneSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet1
+
+  AvailabilityZoneSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet2
+
+  AvailabilityZoneSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet3          
+
+  # Instance/Auto Scaling Group Resources
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref AmiId
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref InstanceKeyPair
+        SecurityGroupIds:
+          - !Ref InstanceSecurityGroup
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - InstanceProfile
+            - Arn
+        UserData: 
+          'Fn::Base64': 
+            !Sub 
+              - |- 
+                Content-Type: multipart/mixed; boundary="//"
+                MIME-Version: 1.0
+
+                --//
+                Content-Type: text/cloud-config; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="cloud-config.txt"
+
+                #cloud-config
+                cloud_final_modules:
+                - [scripts-user, always]
+
+                --//
+                Content-Type: text/x-shellscript; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="userdata.txt"
+
+                #!/bin/bash
+                INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
+                # Start App Install
+                sleep 60 && \
+                # End App Install
+                aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
+                aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
+                --//
+              - { 
+                  autoScalingGroupName: !Ref AutoScalingGroupName,
+                  lifecycleHookName: !Ref LifecycleHookName
+                }
+
+  InstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Policies:
+        -
+          PolicyName: "CompleteLifecycleActionAllowPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: "autoscaling:CompleteLifecycleAction"
+                Resource: !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}"
+                                
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+
+  InstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - 
+          Ref: "InstanceRole"
+
+  AutoScalingGroup:    
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: !Ref AutoScalingGroupName
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      DesiredCapacity: !Ref AutoScalingGroupDesiredCapacity
+      MaxSize: !Ref AutoScalingGroupMaxSize
+      MinSize: !Ref AutoScalingGroupMinSize
+      VPCZoneIdentifier: 
+        - !Ref AvailabilityZoneSubnet1
+        - !Ref AvailabilityZoneSubnet2
+        - !Ref AvailabilityZoneSubnet3
+
+  LifecycleHook:
+    Type: AWS::AutoScaling::LifecycleHook
+    Properties:
+      LifecycleHookName: !Ref LifecycleHookName
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      DefaultResult: ABANDON
+      HeartbeatTimeout: 900
+      LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING"
+
+
+  # Lambda/CloudWatch Rule Resources
+
+  LifecycleEventRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: "EventRule"
+      EventPattern: 
+        source: 
+            - "aws.autoscaling"
+        detail-type: 
+            - "EC2 Instance-launch Lifecycle Action"
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Fn::GetAtt: 
+                - "LifecycleFunction"
+                - "Arn"
+          Id: "LifecycleFunctionV1"
+    
+  PermissionForEventsToInvokeLifecycleLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: 
+        Ref: "LifecycleFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: 
+        Fn::GetAtt: 
+          - "LifecycleEventRule"
+          - "Arn"
+
+  LifecycleFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: LifecycleFunctionLogsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+
+  LifecycleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: source/LifecycleFunction/
+      Handler: app.lambda_handler
+      Role: !GetAtt [ LifecycleFunctionRole, Arn ]
+      Runtime: python3.8

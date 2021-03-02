@@ -1,0 +1,10 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "warmpool-lambda"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1b409du36o7jq"
+s3_prefix = "warmpool-lambda"
+region = "us-west-2"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "AmiId=\"ami-09c5e030f74651050\" AutoScalingGroupName=\"Example Auto Scaling Group\" AutoScalingGroupMinSize=\"0\" AutoScalingGroupMaxSize=\"2\" AutoScalingGroupDesiredCapacity=\"0\" InstanceType=\"t2.micro\" InstanceKeyPair=\"shhorsfi-us-west-2\" LifecycleHookName=\"app-install-hook\" VpcCIDR=\"10.192.0.0/16\" AvailabilityZone1CIDR=\"10.192.10.0/24\" AvailabilityZone2CIDR=\"10.192.11.0/24\" AvailabilityZone3CIDR=\"10.192.12.0/24\""
