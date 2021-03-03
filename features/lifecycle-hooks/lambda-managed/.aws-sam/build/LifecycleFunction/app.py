@@ -23,10 +23,56 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+client = boto3.client('autoscaling')
+
+def send_lifecycle_action(event, result):
+    try:
+        response = client.complete_lifecycle_action(
+            LifecycleHookName=event['detail']['LifecycleHookName'],
+            AutoScalingGroupName=event['detail']['AutoScalingGroupName'],
+            LifecycleActionToken=event['detail']['LifecycleActionToken'],
+            LifecycleActionResult=result,
+            InstanceId=event['detail']['EC2InstanceId']
+        )
+
+        logger.info(response)
+    except ClientError as e:
+        message = 'Error completing lifecycle action: {}'.format(e)
+        logger.error(message)
+        raise Exception(message)
+    
+    return
+
 def lambda_handler(event, context):
 
     logger.info(event)
 
-    # End
+    # If Instance is Launching into AutoScalingGroup
+    if event['detail']['Origin'] == 'EC2' and event['detail']['Destination'] == 'AutoScalingGroup':
+        logger.info('Instance Launched Into AutoScalingGroup')
+        send_lifecycle_action(event, 'CONTINUE')
+        logger.info('Execution Complete')
+        return     
+
+    # If Instance is Launching into WarmPool
+    if event['detail']['Origin'] == 'EC2' and event['detail']['Destination'] == 'WarmPool':
+        logger.info('Instance Launched into WarmPool')
+        send_lifecycle_action(event, 'CONTINUE')
+        logger.info('Execution Complete')
+        return 
+
+    # If Instance is Moving into ASG from WarmPool
+    if event['detail']['Origin'] == 'WarmPool' and event['detail']['Destination'] == 'AutoScalingGroup':
+        logger.info('Instance Moved from WarmPool to AutoScalingGroup')
+        send_lifecycle_action(event, 'CONTINUE')
+        logger.info('Execution Complete')
+        return
+
+    # Otherwise
+    logger.info('An unhandled lifecycle action occured, abandoning.')
+    send_lifecycle_action(event, 'ABANDON')
     logger.info('Execution Complete')
-    return 
+
+    # End
+    return
+    

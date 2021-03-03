@@ -219,12 +219,8 @@ Resources:
                 Content-Disposition: attachment; filename="userdata.txt"
 
                 #!/bin/bash
-                INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
-                # Start App Install
-                sleep 60 && \
-                # End App Install
-                aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
-                aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
+                sleep 60
+                # TODO: Add App Install
                 --//
               - { 
                   autoScalingGroupName: !Ref AutoScalingGroupName,
@@ -289,7 +285,6 @@ Resources:
       HeartbeatTimeout: 900
       LifecycleTransition: "autoscaling:EC2_INSTANCE_LAUNCHING"
 
-
   # Lambda/CloudWatch Rule Resources
 
   LifecycleEventRule: 
@@ -300,7 +295,10 @@ Resources:
         source: 
             - "aws.autoscaling"
         detail-type: 
-            - "EC2 Instance-launch Lifecycle Action"
+            - "EC2 Instance-launch Lifecycle Action" 
+        detail:
+            AutoScalingGroupName:
+              - !Ref AutoScalingGroup
       State: "ENABLED"
       Targets: 
         - 
@@ -343,6 +341,14 @@ Resources:
                   - "logs:CreateLogStream"
                   - "logs:PutLogEvents"
                 Resource: "*"
+        - PolicyName: LifecycleFunctionCompleteLifecycleActionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - "autoscaling:CompleteLifecycleAction"
+                Resource: !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}"
 
   LifecycleFunction:
     Type: AWS::Serverless::Function

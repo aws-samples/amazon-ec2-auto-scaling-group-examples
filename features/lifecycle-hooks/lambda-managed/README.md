@@ -4,7 +4,6 @@
 
 ## Clean Up
 
-
 Example Launch Event
 ```
 [INFO]	2021-03-02T20:40:55.89Z	5e0d845f-d11b-4d92-be3c-b81e8dc921bf	{'version': '0', 'id': '8eba620d-3bc6-0798-8765-e154561683a3', 'detail-type': 'EC2 Instance-launch Lifecycle Action', 'source': 'aws.autoscaling', 'account': '174570359254', 'time': '2021-03-02T20:40:54Z', 'region': 'us-west-2', 'resources': ['arn:aws:autoscaling:us-west-2:174570359254:autoScalingGroup:5b64870a-2427-4c84-8b13-1e12b4a0a28f:autoScalingGroupName/Example Auto Scaling Group'], 'detail': {'LifecycleActionToken': 'a756db24-25a2-45ee-b3fd-f69187545064', 'AutoScalingGroupName': 'Example Auto Scaling Group', 'LifecycleHookName': 'app-install-hook', 'EC2InstanceId': 'i-08bb85942547fea52', 'LifecycleTransition': 'autoscaling:EC2_INSTANCE_LAUNCHING', 'Origin': 'EC2', 'Destination': 'AutoScalingGroup'}}

@@ -193,22 +193,47 @@ Resources:
         UserData:
           Fn::Base64:
             Fn::Sub:
-            - "Content-Type: multipart/mixed; boundary=\"//\"\nMIME-Version: 1.0\n\
-              \n--//\nContent-Type: text/cloud-config; charset=\"us-ascii\"\nMIME-Version:\
-              \ 1.0\nContent-Transfer-Encoding: 7bit\nContent-Disposition: attachment;\
-              \ filename=\"cloud-config.txt\"\n\n#cloud-config\ncloud_final_modules:\n\
-              - [scripts-user, always]\n\n--//\nContent-Type: text/x-shellscript;\
-              \ charset=\"us-ascii\"\nMIME-Version: 1.0\nContent-Transfer-Encoding:\
-              \ 7bit\nContent-Disposition: attachment; filename=\"userdata.txt\"\n\
-              \n#!/bin/bash\nINSTANCE_ID=\"`wget -q -O - http://instance-data/latest/meta-data/instance-id`\"\
-              \ && \\\n# Start App Install\nsleep 60 && \\\n# End App Install\naws\
-              \ autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE\
-              \ --instance-id $INSTANCE_ID --lifecycle-hook-name \"${lifecycleHookName}\"\
-              \ --auto-scaling-group-name \"${autoScalingGroupName}\"  --region ${AWS::Region}\
-              \  || \\\naws autoscaling complete-lifecycle-action --lifecycle-action-result\
-              \ ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name \"${lifecycleHookName}\"\
-              \ --auto-scaling-group-name \"${autoScalingGroupName}\"  --region ${AWS::Region}\
-              \ \n--//"
+            - 'Content-Type: multipart/mixed; boundary="//"
+
+              MIME-Version: 1.0
+
+
+              --//
+
+              Content-Type: text/cloud-config; charset="us-ascii"
+
+              MIME-Version: 1.0
+
+              Content-Transfer-Encoding: 7bit
+
+              Content-Disposition: attachment; filename="cloud-config.txt"
+
+
+              #cloud-config
+
+              cloud_final_modules:
+
+              - [scripts-user, always]
+
+
+              --//
+
+              Content-Type: text/x-shellscript; charset="us-ascii"
+
+              MIME-Version: 1.0
+
+              Content-Transfer-Encoding: 7bit
+
+              Content-Disposition: attachment; filename="userdata.txt"
+
+
+              #!/bin/bash
+
+              sleep 60
+
+              # TODO: Add App Install
+
+              --//'
             - autoScalingGroupName:
                 Ref: AutoScalingGroupName
               lifecycleHookName:
@@ -282,6 +307,9 @@ Resources:
         - aws.autoscaling
         detail-type:
         - EC2 Instance-launch Lifecycle Action
+        detail:
+          AutoScalingGroupName:
+          - Ref: AutoScalingGroup
       State: ENABLED
       Targets:
       - Arn:
@@ -321,6 +349,15 @@ Resources:
             - logs:CreateLogStream
             - logs:PutLogEvents
             Resource: '*'
+      - PolicyName: LifecycleFunctionCompleteLifecycleActionPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - autoscaling:CompleteLifecycleAction
+            Resource:
+              Fn::Sub: arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}
   LifecycleFunction:
     Type: AWS::Serverless::Function
     Properties:
