@@ -10,17 +10,14 @@ This example assumes that you are executing the following commands from a termin
 
 This example requires that an Auto Scaling Group has been configured within the account you are running the example in. This example works best if this Auto Scaling Group is configured with Lifecycle Hooks to manage the lifecycle of your instances. A common example is using Life Cycle Hooks to install and start an application prior to the instance being brought in service. If you'd like a quick-start template that deploys an example Auto Scaling Group then deploy one of the following templates before proceeding.
 
-* Auto Scaling Group w/ Life Cycle Hooks controlled via Userdata
+Auto Scaling Group w/ Life Cycle Hooks controlled via Userdata
 
-```
 Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/userdata-managed/README.md)
-```
 
-* Auto Scaling Group w/ Life Cycle Hooks controlled via a Lambda Function
+Auto Scaling Group w/ Life Cycle Hooks controlled via a Lambda Function
 
-```
 Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed/README.md)
-```
+
 
 ### Install CLI Utilities
 
@@ -160,11 +157,10 @@ aws autoscaling-wp describe-warm-pool --auto-scaling-group-name "Example Auto Sc
 }
 ```
 
-## Check Scaling Speed into Warm Pool
+### Overve Scaling Speed into Warm Pool
 
 ```
 Launching a new EC2 instance into warm pool: i-0ea10fdc59a07df6e Duration: 260s
-Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s
 ```
 
 ## Activity 3: Measure the Scaling Speed of Instances Launched From Warm Pool into an Auto Scaling Group
@@ -193,14 +189,16 @@ done
 ## Step 3: Observe Launch Duration 
 
 ```
-Launching a new EC2 instance from warm pool: i-0ea10fdc59a07df6e Duration: 36s
-Launching a new EC2 instance into warm pool: i-0ea10fdc59a07df6e Duration: 260s
 Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s
 ```
 
 ## Conclusion
 
-
+```
+Launching a new EC2 instance from warm pool: i-0ea10fdc59a07df6e Duration: 36s
+Launching a new EC2 instance into warm pool: i-0ea10fdc59a07df6e Duration: 260s
+Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s
+```
 
 ## Cleanup
 
