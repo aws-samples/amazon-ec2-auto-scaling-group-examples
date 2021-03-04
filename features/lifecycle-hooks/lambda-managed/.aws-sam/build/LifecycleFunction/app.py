@@ -50,26 +50,30 @@ def lambda_handler(event, context):
     # If Instance is Launching into AutoScalingGroup
     if event['detail']['Origin'] == 'EC2' and event['detail']['Destination'] == 'AutoScalingGroup':
         logger.info('Instance Launched Into AutoScalingGroup')
-        send_lifecycle_action(event, 'CONTINUE')
-        logger.info('Execution Complete')
-        return     
-
-    # If Instance is Launching into WarmPool
-    if event['detail']['Origin'] == 'EC2' and event['detail']['Destination'] == 'WarmPool':
-        logger.info('Instance Launched into WarmPool')
-        send_lifecycle_action(event, 'CONTINUE')
-        logger.info('Execution Complete')
-        return 
-
-    # If Instance is Moving into ASG from WarmPool
-    if event['detail']['Origin'] == 'WarmPool' and event['detail']['Destination'] == 'AutoScalingGroup':
-        logger.info('Instance Moved from WarmPool to AutoScalingGroup')
+        # Add Custom Actions Here
         send_lifecycle_action(event, 'CONTINUE')
         logger.info('Execution Complete')
         return
 
-    # Otherwise
+    # If Instance is Launching into WarmPool
+    if event['detail']['Origin'] == 'EC2' and event['detail']['Destination'] == 'WarmPool':
+        logger.info('Instance Launched into WarmPool')
+        # Add Custom Actions Here
+        send_lifecycle_action(event, 'CONTINUE')
+        logger.info('Execution Complete')
+        return
+
+    # If Instance is Moving into ASG from WarmPool
+    if event['detail']['Origin'] == 'WarmPool' and event['detail']['Destination'] == 'AutoScalingGroup':
+        logger.info('Instance Moved from WarmPool to AutoScalingGroup')
+        # Add Custom Actions Here
+        send_lifecycle_action(event, 'CONTINUE')
+        logger.info('Execution Complete')
+        return
+
+    # Else
     logger.info('An unhandled lifecycle action occured, abandoning.')
+    # Add Custom Actions Here
     send_lifecycle_action(event, 'ABANDON')
     logger.info('Execution Complete')
 
