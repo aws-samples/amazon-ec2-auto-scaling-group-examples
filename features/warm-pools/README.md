@@ -12,11 +12,11 @@ This example requires that an Auto Scaling Group has been configured within the 
 
 Auto Scaling Group w/ Life Cycle Hooks controlled via Userdata
 
-Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/userdata-managed/README.md)
+Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/userdata-managed-linux/README.md)
 
 Auto Scaling Group w/ Life Cycle Hooks controlled via a Lambda Function
 
-Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed/README.md)
+Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed-linux/README.md)
 
 
 ### Install CLI Utilities
@@ -147,15 +147,6 @@ aws autoscaling-wp describe-warm-pool --auto-scaling-group-name "Example Auto Sc
 }
 ```
 
-```
-{
-    "WarmPoolConfiguration": {
-        "MinSize": 0,
-        "PoolState": "Stopped"
-    },
-    "Instances": []
-}
-```
 
 ### Overve Scaling Speed into Warm Pool
 
@@ -186,7 +177,19 @@ for row in $(echo "${activities}" | jq -r '.Activities[] | @base64'); do
 done
 ```
 
-## Step 3: Observe Launch Duration 
+### Step 3: Obesere Warm Pool Change
+```
+{
+    "WarmPoolConfiguration": {
+        "MinSize": 0,
+        "PoolState": "Stopped"
+    },
+    "Instances": []
+}
+```
+
+
+## Step 4: Observe Launch Duration 
 
 ```
 Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s

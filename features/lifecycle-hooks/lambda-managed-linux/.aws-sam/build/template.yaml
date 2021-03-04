@@ -229,9 +229,7 @@ Resources:
 
               #!/bin/bash
 
-              sleep 60
-
-              # TODO: Add App Install
+              # Add Bootstrap Actions Here
 
               --//'
             - autoScalingGroupName:
@@ -241,15 +239,6 @@ Resources:
   InstanceRole:
     Type: AWS::IAM::Role
     Properties:
-      Policies:
-      - PolicyName: CompleteLifecycleActionAllowPolicy
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action: autoscaling:CompleteLifecycleAction
-            Resource:
-              Fn::Sub: arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -260,6 +249,8 @@ Resources:
           Action:
           - sts:AssumeRole
       Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -358,6 +349,18 @@ Resources:
             - autoscaling:CompleteLifecycleAction
             Resource:
               Fn::Sub: arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}
+      - PolicyName: LifecycleFunctionSSMPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - ssm:SendCommand
+            Resource: '*'
+            Condition:
+              StringEquals:
+                aws:autoscaling:groupName:
+                - Ref: AutoScalingGroup
   LifecycleFunction:
     Type: AWS::Serverless::Function
     Properties:
