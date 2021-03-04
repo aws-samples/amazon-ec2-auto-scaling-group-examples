@@ -1,5 +1,20 @@
+ # Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ #
+ # Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ # software and associated documentation files (the "Software"), to deal in the Software
+ # without restriction, including without limitation the rights to use, copy, modify,
+ # merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ # permit persons to whom the Software is furnished to do so.
+ #
+ # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ # INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+ # PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ # HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+
 Description: >
   amazon-ec2-autoscaling-lifecycle-hook-userdata-example
   
@@ -181,7 +196,7 @@ Resources:
         UserData: 
           'Fn::Base64': 
             !Sub 
-              - |- 
+              - |-
                 Content-Type: multipart/mixed; boundary="//"
                 MIME-Version: 1.0
 
@@ -202,12 +217,24 @@ Resources:
                 Content-Disposition: attachment; filename="userdata.txt"
 
                 #!/bin/bash
-                INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
-                # Start App Install
-                sleep 60 && \
-                # End App Install
-                aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
-                aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
+                rpm -q httpd &> /dev/null
+                if [ $? -ne 0 ]
+                  then
+                    echo "Application is not installed, install and start it."
+                    INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
+                    sudo yum -y install httpd && \
+                    sudo service httpd start && \
+                    echo "Sleeping for 180 seconds to simulate additional configuration time." && \
+                    sleep 180 && \
+                    aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
+                    aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
+                  else
+                    echo "Application is installed, start it."
+                    INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
+                    sudo service httpd start && \
+                    aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
+                    aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
+                fi
                 --//
               - { 
                   autoScalingGroupName: !Ref AutoScalingGroupName,
