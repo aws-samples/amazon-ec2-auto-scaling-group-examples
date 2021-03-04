@@ -346,11 +346,12 @@ Resources:
               - Effect: Allow
                 Action: 
                   - "ssm:SendCommand"
+                  - "ssm:GetCommandInvocation"
                 Resource: "*"
-                Condition:
-                  StringEquals:
-                    aws:autoscaling:groupName:
-                      - !Ref AutoScalingGroup
+                #Condition:
+                #  StringEquals:
+                #    aws:autoscaling:groupName:
+                #      - !Ref AutoScalingGroup
 
   LifecycleFunction:
     Type: AWS::Serverless::Function
@@ -359,3 +360,4 @@ Resources:
       Handler: app.lambda_handler
       Role: !GetAtt [ LifecycleFunctionRole, Arn ]
       Runtime: python3.8
+      Timeout: 600

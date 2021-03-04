@@ -356,11 +356,8 @@ Resources:
           - Effect: Allow
             Action:
             - ssm:SendCommand
+            - ssm:GetCommandInvocation
             Resource: '*'
-            Condition:
-              StringEquals:
-                aws:autoscaling:groupName:
-                - Ref: AutoScalingGroup
   LifecycleFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -371,3 +368,4 @@ Resources:
         - LifecycleFunctionRole
         - Arn
       Runtime: python3.8
+      Timeout: 600
