@@ -68,6 +68,11 @@ def run_command(event, command):
             logger.info(response)
             if 'Command' in response:
                 break
+            
+            if attempt == 10:
+                message = 'Command did not execute succesfully in time allowed.'
+                raise Exception(message)
+
         except ClientError as e:
             message = 'Error calling SendCommand: {}'.format(e)
             logger.error(message)

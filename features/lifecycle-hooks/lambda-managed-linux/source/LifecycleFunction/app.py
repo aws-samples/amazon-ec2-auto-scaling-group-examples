@@ -68,6 +68,11 @@ def run_command(event, command):
             logger.info(response)
             if 'Command' in response:
                 break
+            
+            if attempt == 10:
+                message = 'Command did not execute succesfully in time allowed.'
+                raise Exception(message)
+
         except ClientError as e:
             message = 'Error calling SendCommand: {}'.format(e)
             logger.error(message)
@@ -88,7 +93,7 @@ def run_command(event, command):
                 InstanceId=event['detail']['EC2InstanceId'],
             )
             if result['Status'] == 'InProgress':
-                logger.info('Command is running: {}'.format(attempt))
+                logger.info('Command is running.')
                 continue
             elif result['Status'] == 'Success':
                 logger.info('Command completed successfully: {}'.format(result['StandardOutputContent']))

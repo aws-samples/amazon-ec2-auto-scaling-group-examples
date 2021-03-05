@@ -349,13 +349,33 @@ Resources:
             - autoscaling:CompleteLifecycleAction
             Resource:
               Fn::Sub: arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}
-      - PolicyName: LifecycleFunctionSSMPolicy
+      - PolicyName: LifecycleFunctionSSMSendCommandDocumentPolicy
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
           - Effect: Allow
             Action:
             - ssm:SendCommand
+            Resource:
+              Fn::Sub: arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+      - PolicyName: LifecycleFunctionSSMSendCommandInstancePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - ssm:SendCommand
+            Resource: arn:aws:ec2:*:*:instance/*
+            Condition:
+              StringEquals:
+                ssm:ResourceTag/aws:autoscaling:groupName:
+                - Ref: AutoScalingGroup
+      - PolicyName: LifecycleFunctionSSMGetCommandInvocationPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
             - ssm:GetCommandInvocation
             Resource: '*'
   LifecycleFunction:
