@@ -17,7 +17,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Description: >
-  amazon-ec2-autoscaling-lifecycle-hook-lambda-linux-example
+  amazon-ec2-autoscaling-lifecycle-hook-lambda-windows-example
   
   Sample CloudFormation template that deploys an Auto Scaling Group with Lifecycle Hooks that are managed from a Lambda function. 
 
@@ -25,7 +25,7 @@ Parameters:
   AmiId:
     Description: AMI Id
     Type: String
-    Default: ami-09c5e030f74651050
+    Default: ami-0f7db24b49508dd37
   AutoScalingGroupName:
     Description: TBD
     Type: String
@@ -199,28 +199,10 @@ Resources:
           'Fn::Base64': 
             !Sub 
               - |- 
-                Content-Type: multipart/mixed; boundary="//"
-                MIME-Version: 1.0
-
-                --//
-                Content-Type: text/cloud-config; charset="us-ascii"
-                MIME-Version: 1.0
-                Content-Transfer-Encoding: 7bit
-                Content-Disposition: attachment; filename="cloud-config.txt"
-
-                #cloud-config
-                cloud_final_modules:
-                - [scripts-user, always]
-
-                --//
-                Content-Type: text/x-shellscript; charset="us-ascii"
-                MIME-Version: 1.0
-                Content-Transfer-Encoding: 7bit
-                Content-Disposition: attachment; filename="userdata.txt"
-
-                #!/bin/bash
-                # Add Bootstrap Actions Here
-                --//
+                <powershell>
+                  Write-Host "This is a command run from UserData."
+                </powershell>
+                <persist>true</persist>
               - { 
                   autoScalingGroupName: !Ref AutoScalingGroupName,
                   lifecycleHookName: !Ref LifecycleHookName
@@ -346,7 +328,7 @@ Resources:
               - Effect: Allow
                 Action: 
                   - "ssm:SendCommand"
-                Resource: !Sub "arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript"
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}::document/AWS-RunPowerShellScript"
         - PolicyName: LifecycleFunctionSSMSendCommandInstancePolicy
           PolicyDocument:
             Version: "2012-10-17"
@@ -375,4 +357,4 @@ Resources:
       Handler: app.lambda_handler
       Role: !GetAtt [ LifecycleFunctionRole, Arn ]
       Runtime: python3.8
-      Timeout: 600
+      Timeout: 900
