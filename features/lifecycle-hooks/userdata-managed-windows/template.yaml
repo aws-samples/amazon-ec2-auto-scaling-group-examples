@@ -16,7 +16,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
 Description: >
-  amazon-ec2-autoscaling-lifecycle-hook-userdata-linux-example
+  amazon-ec2-autoscaling-lifecycle-hook-userdata-windows-example
   
   Sample CloudFormation template that deploys an Auto Scaling Group with Lifecycle Hooks that are managed from User Data. 
 
@@ -24,7 +24,7 @@ Parameters:
   AmiId:
     Description: AMI Id
     Type: String
-    Default: ami-09c5e030f74651050
+    Default: ami-0f7db24b49508dd37
   AutoScalingGroupName:
     Description: TBD
     Type: String
@@ -197,45 +197,44 @@ Resources:
           'Fn::Base64': 
             !Sub 
               - |-
-                Content-Type: multipart/mixed; boundary="//"
-                MIME-Version: 1.0
-
-                --//
-                Content-Type: text/cloud-config; charset="us-ascii"
-                MIME-Version: 1.0
-                Content-Transfer-Encoding: 7bit
-                Content-Disposition: attachment; filename="cloud-config.txt"
-
-                #cloud-config
-                cloud_final_modules:
-                - [scripts-user, always]
-
-                --//
-                Content-Type: text/x-shellscript; charset="us-ascii"
-                MIME-Version: 1.0
-                Content-Transfer-Encoding: 7bit
-                Content-Disposition: attachment; filename="userdata.txt"
-
-                #!/bin/bash
-                rpm -q httpd &> /dev/null
-                if [ $? -ne 0 ]
-                  then
-                    echo "Application is not installed, install and start it."
-                    INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
-                    sudo yum -y install httpd && \
-                    sudo service httpd start && \
-                    echo "Sleeping for 180 seconds to simulate additional configuration time." && \
-                    sleep 180 && \
-                    aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
-                    aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
-                  else
-                    echo "Application is installed, start it."
-                    INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
-                    sudo service httpd start && \
-                    aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
-                    aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
-                fi
-                --//
+                  <powershell>
+                    if ((Get-WindowsFeature Web-Server).InstallState -eq "Installed") {
+                      Write-Host "IIS is installed, stopping and starting IIS"
+                      try
+                      {
+                        Start-Process "iisreset.exe" -NoNewWindow -Wait
+                        Write-Host "Completing Lifecycle Action with CONTINUE"
+                        $INSTANCE = (New-Object System.Net.WebClient).DownloadString("http://169.254.169.254/latest/meta-data/instance-id")
+                        Complete-ASLifecycleAction -InstanceId $INSTANCE -LifecycleHookName "${lifecycleHookName}" -AutoScalingGroupName "${autoScalingGroupName}" -LifecycleActionResult CONTINUE
+                      }
+                      catch
+                      {
+                        Write-Output "An error occured, Completing Lifecycle Action with ABANDON."
+                        $INSTANCE = (New-Object System.Net.WebClient).DownloadString("http://169.254.169.254/latest/meta-data/instance-id")
+                        Complete-ASLifecycleAction -InstanceId $INSTANCE -LifecycleHookName "${lifecycleHookName}" -AutoScalingGroupName "${autoScalingGroupName}" -LifecycleActionResult ABANDON
+                      }
+                    } 
+                    else {
+                      Write-Host "IIS is not installed, installing, stopping and starting IIS."
+                      try
+                      {
+                        Install-WindowsFeature -name Web-Server -IncludeManagementTools
+                        Start-Process "iisreset.exe" -NoNewWindow -Wait
+                        Write-Host "Sleeping for 120 Seconds to Simulate IIS Configuration."
+                        Start-Sleep -s 120
+                        Write-Host "Completing Lifecycle Action with CONTINUE"
+                        $INSTANCE = (New-Object System.Net.WebClient).DownloadString("http://169.254.169.254/latest/meta-data/instance-id")
+                        Complete-ASLifecycleAction -InstanceId $INSTANCE -LifecycleHookName "${lifecycleHookName}" -AutoScalingGroupName "${autoScalingGroupName}" -LifecycleActionResult CONTINUE
+                      }
+                      catch
+                      {
+                        Write-Output "An error occured, Completing Lifecycle Action with ABANDON."
+                        $INSTANCE = (New-Object System.Net.WebClient).DownloadString("http://169.254.169.254/latest/meta-data/instance-id")
+                        Complete-ASLifecycleAction -InstanceId $INSTANCE -LifecycleHookName "${lifecycleHookName}" -AutoScalingGroupName "${autoScalingGroupName}" -LifecycleActionResult ABANDON
+                      }
+                    }
+                  </powershell>
+                  <persist>true</persist>
               - { 
                   autoScalingGroupName: !Ref AutoScalingGroupName,
                   lifecycleHookName: !Ref LifecycleHookName
