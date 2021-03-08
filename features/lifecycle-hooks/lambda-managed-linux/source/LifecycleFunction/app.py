@@ -125,7 +125,8 @@ def lambda_handler(event, context):
     if event['detail']['Origin'] == 'EC2' and event['detail']['Destination'] == 'AutoScalingGroup':
         logger.info('Instance Launched Into AutoScalingGroup')
         try:
-            run_command(event, 'sudo yum -y install httpd && sudo service httpd start && sleep 60')
+            command = "sudo yum -y install httpd && sudo service httpd start && sleep 60"
+            run_command(event, command)
             send_lifecycle_action(event, 'CONTINUE')
         except Exception as e:
             message = 'Error running command: {}'.format(e)
@@ -138,7 +139,8 @@ def lambda_handler(event, context):
     if event['detail']['Origin'] == 'EC2' and event['detail']['Destination'] == 'WarmPool':
         logger.info('Instance Launched into WarmPool')
         try:
-            run_command(event, 'sudo yum -y install httpd && sudo service httpd start && sleep 60')
+            command = "sudo yum -y install httpd && sudo service httpd start && sleep 60"
+            run_command(event, command)
             send_lifecycle_action(event, 'CONTINUE')
         except Exception as e:
             message = 'Error running command: {}'.format(e)
@@ -151,7 +153,8 @@ def lambda_handler(event, context):
     if event['detail']['Origin'] == 'WarmPool' and event['detail']['Destination'] == 'AutoScalingGroup':
         logger.info('Instance Moved from WarmPool to AutoScalingGroup')
         try:
-            run_command(event, 'sudo service httpd start')
+            command = "sudo service httpd start"
+            run_command(event, command)
             send_lifecycle_action(event, 'CONTINUE')
         except Exception as e:
             message = 'Error running command: {}'.format(e)
