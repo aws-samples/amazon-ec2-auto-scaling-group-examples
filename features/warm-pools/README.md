@@ -18,7 +18,6 @@ Auto Scaling Group w/ Life Cycle Hooks controlled via a Lambda Function
 
 Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed-linux/README.md)
 
-
 ### Install CLI Utilities
 
 To measure scaling speed we will run a simple Bash script that takes the response of a DescribeScalingActivities API call and calculates the duration of scaling activities. To execute this script, the following CLI utilities are required. If you're not using Homebrew, refer to the following instructions for installing these on your system.
@@ -61,7 +60,6 @@ done
 ```
 
 ### Step 3: Observe Launch Duration
-
 ```
 Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s
 ```
@@ -77,6 +75,28 @@ aws autoscaling-wp put-warm-pool --auto-scaling-group-name "Example Auto Scaling
 ```
 aws autoscaling-wp describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --region us-west-2
 ```
+
+```
+{
+    "WarmPoolConfiguration": {
+        "MinSize": 0,
+        "PoolState": "Stopped"
+    },
+    "Instances": [
+        {
+            "InstanceId": "i-0ea10fdc59a07df6e",
+            "InstanceType": "t2.micro",
+            "AvailabilityZone": "us-west-2a",
+            "LifecycleState": "Warmed:Pending",
+            "HealthStatus": "Healthy",
+            "LaunchTemplate": {
+                "LaunchTemplateId": "lt-0356f1c452b0eb0eb",
+                "LaunchTemplateName": "LaunchTemplate_O7hvkiPu9hmf",
+                "Version": "1"
+            }
+        }
+    ]
+}
 
 ```
 {
@@ -147,7 +167,6 @@ aws autoscaling-wp describe-warm-pool --auto-scaling-group-name "Example Auto Sc
 }
 ```
 
-
 ### Overve Scaling Speed into Warm Pool
 
 ```
@@ -178,6 +197,11 @@ done
 ```
 
 ### Step 3: Obesere Warm Pool Change
+
+```
+aws autoscaling-wp describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --region us-west-2
+```
+
 ```
 {
     "WarmPoolConfiguration": {
@@ -188,8 +212,22 @@ done
 }
 ```
 
-
 ## Step 4: Observe Launch Duration 
+
+```
+activities=$(aws autoscaling describe-scaling-activities --auto-scaling-group-name "Example Auto Scaling Group")
+for row in $(echo "${activities}" | jq -r '.Activities[] | @base64'); do
+    _jq() {
+     echo ${row} | base64 --decode | jq -r ${1}
+    }
+
+   start_time=$(_jq '.StartTime')
+   end_time=$(_jq '.EndTime')
+   activity=$(_jq '.Description')
+
+   echo $activity Duration: $(datediff $start_time $end_time)
+done
+```
 
 ```
 Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s
