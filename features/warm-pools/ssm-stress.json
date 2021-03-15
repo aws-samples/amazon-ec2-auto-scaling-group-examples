@@ -1,0 +1,17 @@
+{
+    "Targets": [
+        {
+            "Key": "tag:Name",
+            "Values": [
+                "LifecycleHookExampleInstance"
+            ]
+        }
+    ],
+    "DocumentName": "AWS-RunShellScript",
+    "Comment": "LifecycleHookExampleInstance stress",
+    "Parameters": {
+        "commands": [
+            "sudo stress --cpu 1 -v --timeout 300s"
+        ]
+    }
+}

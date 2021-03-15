@@ -1,4 +1,4 @@
-# Auto Scaling Group Lifecycle Hooks Example - User Data Managed
+# Auto Scaling Group Lifecycle Hooks Example - User Data Managed Linux
 
 ## Deployment
 

@@ -193,6 +193,11 @@ Resources:
           Arn: !GetAtt
             - InstanceProfile
             - Arn
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: LifecycleHookExampleInstance       
         UserData: 
           'Fn::Base64': 
             !Sub 
@@ -220,12 +225,19 @@ Resources:
                 rpm -q httpd &> /dev/null
                 if [ $? -ne 0 ]
                   then
+                    sudo amazon-linux-extras install epel -y
+                    sudo yum install stress -y
+                fi
+
+                rpm -q httpd &> /dev/null
+                if [ $? -ne 0 ]
+                  then
                     echo "Application is not installed, install and start it."
                     INSTANCE_ID="`wget -q -O - http://instance-data/latest/meta-data/instance-id`" && \
                     sudo yum -y install httpd && \
                     sudo service httpd start && \
-                    echo "Sleeping for 180 seconds to simulate additional configuration time." && \
-                    sleep 180 && \
+                    echo "Sleeping for 120 seconds to simulate additional configuration time." && \
+                    sleep 120 && \
                     aws autoscaling complete-lifecycle-action --lifecycle-action-result CONTINUE --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region}  || \
                     aws autoscaling complete-lifecycle-action --lifecycle-action-result ABANDON --instance-id $INSTANCE_ID --lifecycle-hook-name "${lifecycleHookName}" --auto-scaling-group-name "${autoScalingGroupName}"  --region ${AWS::Region} 
                   else
@@ -253,8 +265,7 @@ Resources:
               -
                 Effect: "Allow"
                 Action: "autoscaling:CompleteLifecycleAction"
-                Resource: !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}"
-                                
+                Resource: !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}"                         
       AssumeRolePolicyDocument: 
         Version: "2012-10-17"
         Statement: 
@@ -266,7 +277,9 @@ Resources:
             Action: 
               - "sts:AssumeRole"
       Path: "/"
-
+      ManagedPolicyArns:
+              - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+              
   InstanceProfile: 
     Type: "AWS::IAM::InstanceProfile"
     Properties: 

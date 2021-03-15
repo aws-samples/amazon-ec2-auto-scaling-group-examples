@@ -1,0 +1,13 @@
+{
+    "AutoScalingGroupName": "Example Auto Scaling Group",
+    "PolicyName": "automaticScalingTargetTracking",
+    "PolicyType": "TargetTrackingScaling",
+    "EstimatedInstanceWarmup": 30,
+    "TargetTrackingConfiguration": {
+      "PredefinedMetricSpecification": {
+        "PredefinedMetricType": "ASGAverageCPUUtilization"
+      },
+      "TargetValue": 40,
+      "DisableScaleIn": false
+    }
+}

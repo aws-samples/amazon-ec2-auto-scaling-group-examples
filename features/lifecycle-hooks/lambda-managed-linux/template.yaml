@@ -195,6 +195,11 @@ Resources:
           Arn: !GetAtt
             - InstanceProfile
             - Arn
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: LifecycleHookExampleInstance            
         UserData: 
           'Fn::Base64': 
             !Sub 
@@ -219,7 +224,12 @@ Resources:
                 Content-Disposition: attachment; filename="userdata.txt"
 
                 #!/bin/bash
-                # Add Bootstrap Actions Here
+                rpm -q httpd &> /dev/null
+                if [ $? -ne 0 ]
+                  then
+                    sudo amazon-linux-extras install epel -y
+                    sudo yum install stress -y
+                fi
                 --//
               - { 
                   autoScalingGroupName: !Ref AutoScalingGroupName,

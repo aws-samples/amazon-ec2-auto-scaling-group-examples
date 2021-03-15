@@ -193,6 +193,11 @@ Resources:
           Arn: !GetAtt
             - InstanceProfile
             - Arn
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: LifecycleHookExampleInstance
         UserData: 
           'Fn::Base64': 
             !Sub 
@@ -252,8 +257,7 @@ Resources:
               -
                 Effect: "Allow"
                 Action: "autoscaling:CompleteLifecycleAction"
-                Resource: !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}"
-                                
+                Resource: !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}"                               
       AssumeRolePolicyDocument: 
         Version: "2012-10-17"
         Statement: 
@@ -265,7 +269,9 @@ Resources:
             Action: 
               - "sts:AssumeRole"
       Path: "/"
-
+      ManagedPolicyArns:
+              - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+              
   InstanceProfile: 
     Type: "AWS::IAM::InstanceProfile"
     Properties: 

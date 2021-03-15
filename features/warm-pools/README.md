@@ -68,7 +68,7 @@ Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s
 
 ### Step 1: Put Warm Pool Configuration
 ```
-aws autoscaling-wp put-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --pool-state Stopped --region us-west-2 --min-size 2
+aws autoscaling-wp put-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --pool-state Stopped --region us-west-2
 ```
 
 ### Step 2: Describe Warm Pool Configuration
@@ -212,7 +212,7 @@ aws autoscaling-wp describe-warm-pool --auto-scaling-group-name "Example Auto Sc
 }
 ```
 
-## Step 4: Observe Launch Duration 
+### Step 4: Observe Launch Duration 
 
 ```
 activities=$(aws autoscaling describe-scaling-activities --auto-scaling-group-name "Example Auto Scaling Group")
@@ -232,6 +232,34 @@ done
 ```
 Launching a new EC2 instance: i-075fa0ad6a018cdfc Duration: 243s
 ```
+
+## Activity 3: Testing Scaling Speed with Scaling Policies
+
+Delete Warm Pool
+```
+aws autoscaling-wp delete-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --region us-west-2
+```
+
+Set Capacity to 4
+```
+aws autoscaling set-desired-capacity --auto-scaling-group-name "Example Auto Scaling Group" --desired-capacity 4
+```
+
+Add our scaling policy
+```
+aws autoscaling put-scaling-policy --cli-input-json file://scaling-policy.json
+```
+
+Stress the application
+```
+aws ssm send-command --cli-input-json file://ssm-stress.json
+``
+
+Measure Scaling Time 
+```
+
+```
+
 
 ## Conclusion
 
