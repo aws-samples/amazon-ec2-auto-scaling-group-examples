@@ -1,6 +1,6 @@
 # Auto Scaling Group Lifecycle Hooks Example - Lambda Managed Windows
 
-This example solution deploys an Auto Scaling group within a VPC. A Lifecycle Hook is enabled for the Auto Scaling group and a Lambda Function invokes in response to Lifecycle Action Events. The Lambda function uses AWS Systems Manager to install a sample application onto instances launched into the Auto Scaling group as they are Launched.
+This example solution deploys an Auto Scaling group within a VPC. A lifecycle hook is enabled for the Auto Scaling group and a Lambda Function invokes in response to Lifecycle Action Events. The Lambda function uses AWS Systems Manager to install a sample application onto instances launched into the Auto Scaling group as they are Launched.
 
 ## Deployment
 

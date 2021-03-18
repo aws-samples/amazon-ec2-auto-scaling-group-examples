@@ -224,7 +224,7 @@ Resources:
                 Content-Disposition: attachment; filename="userdata.txt"
 
                 #!/bin/bash
-                rpm -q httpd &> /dev/null
+                rpm -q stress &> /dev/null
                 if [ $? -ne 0 ]
                   then
                     sudo amazon-linux-extras install epel -y
