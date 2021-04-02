@@ -24,8 +24,8 @@ Description: >
 Parameters:
   AmiId:
     Description: AMI Id
-    Type: String
-    Default: ami-0f7db24b49508dd37
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
   AutoScalingGroupName:
     Description: TBD
     Type: String
