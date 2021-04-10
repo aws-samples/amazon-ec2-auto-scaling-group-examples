@@ -7,7 +7,7 @@ This example solution deploys an Auto Scaling group within a VPC. A lifecycle ho
 Clone the repository.
 
 ```
-git clone git@github.com:aws-samples/amazon-ec2-auto-scaling-group-examples.git
+git clone https://github.com/aws-samples/amazon-ec2-auto-scaling-group-examples.git
 ```
 
 Change directories to this example.
