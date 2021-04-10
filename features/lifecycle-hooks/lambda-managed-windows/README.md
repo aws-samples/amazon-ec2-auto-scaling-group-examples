@@ -7,13 +7,13 @@ This example solution deploys an Auto Scaling group within a VPC. A lifecycle ho
 Clone the repository.
 
 ```
-git clone git@github.com:aws-samples/amazon-ec2-autoscaling-examples.git
+git clone https://github.com/aws-samples/amazon-ec2-auto-scaling-group-examples.git
 ```
 
 Change directories to this example.
 
 ```
-cd amazon-ec2-autoscaling-examples/features/lifecycle-hooks/lambda-managed-windows
+cd amazon-ec2-auto-scaling-group-examples/features/lifecycle-hooks/lambda-managed-windows
 ```
 
 Build the solution.
