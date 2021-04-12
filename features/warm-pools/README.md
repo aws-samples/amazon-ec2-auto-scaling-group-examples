@@ -17,15 +17,15 @@ We recommend deploying the following [Example AWS Cloud9 Environment](/environme
 
 ## Deploy Example Auto Saling Group CloudFormation Template
 
-This example requires that an Auto Scaling group has been configured within the account you are running the example in. This example works best if this Auto Scaling group is configured with lifecycle hooks to manage the lifecycle of your instances. A common example is using life cycle Hooks to install and start an application prior to the instance being brought in service. You can use one of the following templates to deploy an example Auto Scaling group for use with this walk through.
+This example requires that an Auto Scaling group has been configured within the account you are running the example in. This example works best if this Auto Scaling group is configured with lifecycle hooks to manage the lifecycle of your instances. A common example is using life cycle Hooks to install and start an application prior to the instance being brought in service. You can use one of the following CloudFormation templates to deploy an example Auto Scaling group for use with this walk through.
 
-Auto Scaling group w/ Life Cycle Hooks controlled via Userdata
+### Auto Scaling group w/ Life Cycle Hooks controlled via Userdata
 
-* Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/userdata-managed-linux/README.md)
+* [Deploy the sample CloudFormation template](../lifecycle-hooks/userdata-managed-linux/README.md)
 
-Auto Scaling group w/ Life Cycle Hooks controlled via a Lambda Function
+### Auto Scaling group w/ Life Cycle Hooks controlled via a Lambda Function
 
-* Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed-linux/README.md)
+* [Deploy the sample CloudFormation template](../lifecycle-hooks/lambda-managed-linux/README.md)
 
 ## Activity 1: Measure the Launch Speed of Instances Launched Directly into an Auto Scaling Group
 
@@ -34,6 +34,14 @@ With our Auto Scaling group deployed, and CLI utilities installed, we can begin 
 The userdata managed example uses a script that execute on the instance when the instance first boots, and every time the instance starts. This script detects if the application is installed, and if not, installs and starts it. If the application is already installed it ensures that it's started. Once the application is installed or started, a command is executed to complete the lifecycle action and allow the instance to transtion to the next lifecycle step.
 
 The lambda managed example uses a Lambda function that executes in response to Amazon EventBridge events that are generated as instances transition through their lifecycle. The Lambda function can perform different actions as the instance is first launched, launched into a warm pool, or started from a warm pool. This allows the Lambda function to perform actions such as installing an application, registering an instance with a primary node, or ensuring that an application is started prior to the instance being moved in-service.
+
+### Prerequisite
+
+Change directories to this example.
+
+```bash
+cd amazon-ec2-auto-scaling-group-examples/features/warm-pools
+```
 
 ### Step 1: Increase Desired Capacity
 

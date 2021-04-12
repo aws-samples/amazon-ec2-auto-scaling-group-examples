@@ -6,7 +6,7 @@ Deploy this environment if you want an AWS Cloud9 Environment pre-configured to 
 
 ## Deployment
 
-This stack will deploy an AWS Cloud9 Environment running on a t3.small instance in your default VPC. If you've removed or changed your default VPC then you may run into issues running this environment. You will be charged for running this environment based on [AWS Cloud9](https://aws.amazon.com/cloud9/pricing/) pricing.
+This stack will deploy an AWS Cloud9 Environment running on a t3.small instance in your default VPC. If you've removed or changed your default VPC then you may run into issues running this environment. You will be charged for running this environment based on AWS Cloud9 [pricing](https://aws.amazon.com/cloud9/pricing/).
 
 1. Click the Launch Stack button below to deploy this environment. 
 2. Switch your region if necessary. 
@@ -35,10 +35,10 @@ git checkout cloud9-environment
 ```bash
 cd ~/environment/amazon-ec2-auto-scaling-group-examples/environment
 ```
-6. Run the bootstrap script to configure the environment. This script will take several minutes to complete.
+6. Run the configuration script to configure the environment. This script will take several minutes to complete.
 
 ```bash
-sh bootstrap.sh
+sh configure.sh
 ```
 
 7. After the script has completed, OPEN A NEW TERMINAL SESSION from the Menu Bar by navigating to Window, New Terminal. 

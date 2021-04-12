@@ -106,9 +106,8 @@ function main() {
     install_utilities
 
     echo 'export PATH="/home/linuxbrew/.linuxbrew/opt/python@3.8/bin:$PATH"' >> /home/ec2-user/.bash_profile
-    source /home/ec2-user/.bash_profile
 
-    echo -e "${RED} [!!!!!!!!!] Open up a new terminal to reflect changes ${NC}"
+    echo -e "${RED} [!!!!!!!!!] OPEN A NEW TERMINAL AND CLOSE THIS ONE ${NC}"
     exec ${SHELL}
 }
 
