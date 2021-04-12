@@ -2,33 +2,30 @@
 
 This example walks you through configuring Warm Pools for an Auto Scaling Group and measuring the launch time when launching pre-initialized instances from a Warm Pool as compared to launching instances directly into the Auto Scaling group and completing bootstrapping actions.
 
-## Prerequisites
+## Getting Started
 
-This example assumes that you are executing the following commands from a terminal environment w/ the aws-cli installed and with credentials properly configured. If you need help installing and configuring the aws-cli please refer to these instructions: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
+We recommend deploying the following [Example AWS Cloud9 Environment](/environment/README.md) to get started quickly with this example. Otherwise, you can attempt to run this example using your own environment with the following prerequisites installed.
 
-### Deploy Example Auto Saling Group CloudFormation Template
+### Prerequisites
+
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) installed and configured with Administrator credentials.
+* [Python 3 installed](https://www.python.org/downloads/)
+* [Docker installed](https://www.docker.com/community-edition)
+* [SAM CLI installed](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+* [jq](https://stedolan.github.io/jq/download/)
+* [dateutils](http://www.fresse.org/dateutils/)
+
+## Deploy Example Auto Saling Group CloudFormation Template
 
 This example requires that an Auto Scaling group has been configured within the account you are running the example in. This example works best if this Auto Scaling group is configured with lifecycle hooks to manage the lifecycle of your instances. A common example is using life cycle Hooks to install and start an application prior to the instance being brought in service. You can use one of the following templates to deploy an example Auto Scaling group for use with this walk through.
 
 Auto Scaling group w/ Life Cycle Hooks controlled via Userdata
 
-Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/userdata-managed-linux/README.md)
+* Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/userdata-managed-linux/README.md)
 
 Auto Scaling group w/ Life Cycle Hooks controlled via a Lambda Function
 
-Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed-linux/README.md)
-
-### Install CLI Utilities
-
-To measure scaling speed we will run a simple Bash script that takes the response of a DescribeScalingActivities API call and calculates the duration of scaling activities. To execute this script, the following CLI utilities are required. If you're not using Homebrew, refer to the following instructions for installing these on your system.
-
-* [jq](https://stedolan.github.io/jq/download/)
-* [dateutils](http://www.fresse.org/dateutils/)
-
-```
-brew install jq
-brew install dateutils
-```
+* Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed-linux/README.md)
 
 ## Activity 1: Measure the Launch Speed of Instances Launched Directly into an Auto Scaling Group
 
