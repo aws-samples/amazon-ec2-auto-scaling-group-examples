@@ -17,7 +17,7 @@ Once you've deployed and accessed the [Example AWS Cloud9 Environment](/environm
 1. Change directories to this example.
 
 ```bash
-cd amazon-ec2-auto-scaling-group-examples/features/lifecycle-hooks/userdata-managed-windows-multi-reboot
+cd ~/environment/amazon-ec2-auto-scaling-group-examples/features/lifecycle-hooks/userdata-managed-windows-multi-reboot
 ```
 
 2. Deploy the CloudFormation Stack. You will need to replace `REPLACE_THIS_WITH_YOUR_KEY_PAIR_NAME` with the name of an SSH key in the region you are deploying the example to.

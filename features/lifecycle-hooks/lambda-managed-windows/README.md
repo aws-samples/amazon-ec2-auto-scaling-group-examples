@@ -26,7 +26,7 @@ aws s3 mb s3://BUCKET_NAME
 2. Change directories to this example.
 
 ```bash
-cd amazon-ec2-auto-scaling-group-examples/features/lifecycle-hooks/lambda-managed-windows
+cd ~/environment/amazon-ec2-auto-scaling-group-examples/features/lifecycle-hooks/lambda-managed-windows
 ```
 
 3. Build the solution.

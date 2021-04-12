@@ -40,7 +40,7 @@ The lambda managed example uses a Lambda function that executes in response to A
 Change directories to this example.
 
 ```bash
-cd amazon-ec2-auto-scaling-group-examples/features/warm-pools
+cd ~/environment/amazon-ec2-auto-scaling-group-examples/features/warm-pools
 ```
 
 ### Step 1: Increase Desired Capacity
@@ -53,7 +53,7 @@ aws autoscaling set-desired-capacity --auto-scaling-group-name "Example Auto Sca
 
 ### Step 2: Measure Launch Speed
 
-Now, let's measure the launch speed of the instance.
+Now, let's measure the launch speed of the instance. You will need to wait a few minutes for the instance to be launched by the previous step.
 
 ```
 activities=$(aws autoscaling describe-scaling-activities --auto-scaling-group-name "Example Auto Scaling Group")
@@ -87,7 +87,7 @@ Let's add a Warm Pool to our Auto Scaling group so we can pre-initialize our ins
 We can add a Warm Pool to our Auto Scaling group with a PutWarmPool API call. We will keep our Warm Pool instances in a stopped state after they have completed their initialization actions. We will omit the optional Warm Pool sizing parameters (--min-size and --max-group-prepared-capacity) meaning our Warm Pool will have a minimum size of 0 and a maximum repared capacity equal to the max size of the Auto Scaling group. The maximum prepared capacity will include instances launched into the Auto Scaling group, and instances launched into the Warm Pool. If you deployed one of the example Auto Scaling groups, this will be set to 2 as a default.
 
 ```
-aws autoscaling put-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --pool-state Stopped --region us-west-2
+aws autoscaling put-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --pool-state Stopped
 ```
 
 ### Step 2: Describe Warm Pool Configuration
@@ -95,7 +95,7 @@ aws autoscaling put-warm-pool --auto-scaling-group-name "Example Auto Scaling Gr
 By using a DescribeWarmPool API call, we can now see that one instance was launched into our Warm Pool. This is because our Warm Pool's maximum prepared capacity is equal to the Auto Scaling group max size. Since we have one instance already in service, only one additional instance was launched into the Warm Pool to equal the maximum prepared capacity of 2.
 
 ```
-aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --region us-west-2
+aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group"
 ```
 
 When an instance is launched into a Warm Pool it will transition through lifecycle states, with Warmed:Pending.
@@ -240,7 +240,7 @@ aws autoscaling set-desired-capacity --auto-scaling-group-name "Example Auto Sca
 Now, let's describe our Warm Pool and observe any changes. As you can see below, the instance we previously launched is no longer in our Warm Pool. This is beause it was launched from the Warm Pool, into the Auto Scaling group in response to our increase in desired capacity.
 
 ```
-aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --region us-west-2
+aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group"
 ```
 
 ```
