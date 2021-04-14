@@ -2,33 +2,30 @@
 
 This example walks you through configuring Warm Pools for an Auto Scaling Group and measuring the launch time when launching pre-initialized instances from a Warm Pool as compared to launching instances directly into the Auto Scaling group and completing bootstrapping actions.
 
-## Prerequisites
+## Getting Started
 
-This example assumes that you are executing the following commands from a terminal environment w/ the aws-cli installed and with credentials properly configured. If you need help installing and configuring the aws-cli please refer to these instructions: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
+We recommend deploying the following [Example AWS Cloud9 Environment](/environment/README.md) to get started quickly with this example. Otherwise, you can attempt to run this example using your own environment with the following prerequisites installed.
 
-### Deploy Example Auto Saling Group CloudFormation Template
+### Prerequisites
 
-This example requires that an Auto Scaling group has been configured within the account you are running the example in. This example works best if this Auto Scaling group is configured with lifecycle hooks to manage the lifecycle of your instances. A common example is using life cycle Hooks to install and start an application prior to the instance being brought in service. You can use one of the following templates to deploy an example Auto Scaling group for use with this walk through.
-
-Auto Scaling group w/ Life Cycle Hooks controlled via Userdata
-
-Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/userdata-managed-linux/README.md)
-
-Auto Scaling group w/ Life Cycle Hooks controlled via a Lambda Function
-
-Deploy the sample CloudFormation template: [HERE](../lifecycle-hooks/lambda-managed-linux/README.md)
-
-### Install CLI Utilities
-
-To measure scaling speed we will run a simple Bash script that takes the response of a DescribeScalingActivities API call and calculates the duration of scaling activities. To execute this script, the following CLI utilities are required. If you're not using Homebrew, refer to the following instructions for installing these on your system.
-
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) installed and configured with Administrator credentials.
+* [Python 3 installed](https://www.python.org/downloads/)
+* [Docker installed](https://www.docker.com/community-edition)
+* [SAM CLI installed](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
 * [jq](https://stedolan.github.io/jq/download/)
 * [dateutils](http://www.fresse.org/dateutils/)
 
-```
-brew install jq
-brew install dateutils
-```
+## Deploy Example Auto Saling Group CloudFormation Template
+
+This example requires that an Auto Scaling group has been configured within the account you are running the example in. This example works best if this Auto Scaling group is configured with lifecycle hooks to manage the lifecycle of your instances. A common example is using life cycle Hooks to install and start an application prior to the instance being brought in service. You can use one of the following CloudFormation templates to deploy an example Auto Scaling group for use with this walk through.
+
+### Auto Scaling group w/ Life Cycle Hooks controlled via Userdata
+
+* [Deploy the sample CloudFormation template](../lifecycle-hooks/userdata-managed-linux/README.md)
+
+### Auto Scaling group w/ Life Cycle Hooks controlled via a Lambda Function
+
+* [Deploy the sample CloudFormation template](../lifecycle-hooks/lambda-managed-linux/README.md)
 
 ## Activity 1: Measure the Launch Speed of Instances Launched Directly into an Auto Scaling Group
 
@@ -37,6 +34,14 @@ With our Auto Scaling group deployed, and CLI utilities installed, we can begin 
 The userdata managed example uses a script that execute on the instance when the instance first boots, and every time the instance starts. This script detects if the application is installed, and if not, installs and starts it. If the application is already installed it ensures that it's started. Once the application is installed or started, a command is executed to complete the lifecycle action and allow the instance to transtion to the next lifecycle step.
 
 The lambda managed example uses a Lambda function that executes in response to Amazon EventBridge events that are generated as instances transition through their lifecycle. The Lambda function can perform different actions as the instance is first launched, launched into a warm pool, or started from a warm pool. This allows the Lambda function to perform actions such as installing an application, registering an instance with a primary node, or ensuring that an application is started prior to the instance being moved in-service.
+
+### Prerequisite
+
+Change directories to this example.
+
+```bash
+cd ~/environment/amazon-ec2-auto-scaling-group-examples/features/warm-pools
+```
 
 ### Step 1: Increase Desired Capacity
 
@@ -48,7 +53,7 @@ aws autoscaling set-desired-capacity --auto-scaling-group-name "Example Auto Sca
 
 ### Step 2: Measure Launch Speed
 
-Now, let's measure the launch speed of the instance.
+Now, let's measure the launch speed of the instance. You will need to wait a few minutes for the instance to be launched by the previous step.
 
 ```
 activities=$(aws autoscaling describe-scaling-activities --auto-scaling-group-name "Example Auto Scaling Group")
@@ -82,7 +87,7 @@ Let's add a Warm Pool to our Auto Scaling group so we can pre-initialize our ins
 We can add a Warm Pool to our Auto Scaling group with a PutWarmPool API call. We will keep our Warm Pool instances in a stopped state after they have completed their initialization actions. We will omit the optional Warm Pool sizing parameters (--min-size and --max-group-prepared-capacity) meaning our Warm Pool will have a minimum size of 0 and a maximum repared capacity equal to the max size of the Auto Scaling group. The maximum prepared capacity will include instances launched into the Auto Scaling group, and instances launched into the Warm Pool. If you deployed one of the example Auto Scaling groups, this will be set to 2 as a default.
 
 ```
-aws autoscaling put-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --pool-state Stopped --region us-west-2
+aws autoscaling put-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --pool-state Stopped
 ```
 
 ### Step 2: Describe Warm Pool Configuration
@@ -90,7 +95,7 @@ aws autoscaling put-warm-pool --auto-scaling-group-name "Example Auto Scaling Gr
 By using a DescribeWarmPool API call, we can now see that one instance was launched into our Warm Pool. This is because our Warm Pool's maximum prepared capacity is equal to the Auto Scaling group max size. Since we have one instance already in service, only one additional instance was launched into the Warm Pool to equal the maximum prepared capacity of 2.
 
 ```
-aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --region us-west-2
+aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group"
 ```
 
 When an instance is launched into a Warm Pool it will transition through lifecycle states, with Warmed:Pending.
@@ -235,7 +240,7 @@ aws autoscaling set-desired-capacity --auto-scaling-group-name "Example Auto Sca
 Now, let's describe our Warm Pool and observe any changes. As you can see below, the instance we previously launched is no longer in our Warm Pool. This is beause it was launched from the Warm Pool, into the Auto Scaling group in response to our increase in desired capacity.
 
 ```
-aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group" --region us-west-2
+aws autoscaling describe-warm-pool --auto-scaling-group-name "Example Auto Scaling Group"
 ```
 
 ```
