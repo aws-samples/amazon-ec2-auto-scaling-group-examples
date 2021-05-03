@@ -21,15 +21,6 @@ This stack will deploy an AWS Cloud9 Environment running on a t3.small instance 
 2. Select "Your Environments" from the menu on the left side of the page.
 3. Locate the environment with a name starting with "AutoScalingGroupExampleEnvironment" and click Open IDE.
 4. When the environment launches for the first time, this repository will be cloned into ~/environment.
-
-**REMOVE BEFORE MERGE TEMP INSTRUCTIONS FOR TESTING
-* Checkout test branch
-```bash
-cd ~/environment/amazon-ec2-auto-scaling-group-examples/
-git checkout cloud9-environment
-```
-**END TEMP INSTRUCTIONS FOR TESTING
-
 5. Change directories to ~/environment/amazon-ec2-auto-scaling-group-examples/environment.
 
 ```bash
