@@ -53,17 +53,22 @@ logger.addHandler(handler)
 
 # Globals
 errors = []
+session = None
+sts = None
 
 # Client
-if os.environ['AWS_EXECUTION_ENV'] == 'CloudShell':
+if 'AWS_EXECUTION_ENV' in os.environ:
+    if os.environ['AWS_EXECUTION_ENV'] == 'CloudShell':
 
-    try:
-        session = boto3.Session(profile_name=args.profile)
-        sts=session.client('sts')
+        try:
+            session = boto3.Session(profile_name=args.profile)
+            sts=session.client('sts')
 
-    except Exception as e:
-        message = 'Could not load credentials: {} : {}'.format(args.profile, e)
-        logger.error(message)
+        except Exception as e:
+            message = 'Could not load credentials: {} : {}'.format(args.profile, e)
+            logger.error(message)
+            
+    # Handle Other Execution Environments
     
 else:
 
