@@ -18,8 +18,10 @@ import logging
 import sys
 import csv
 import argparse
+import os
 
 from botocore.exceptions import ClientError
+from botocore.exceptions import ProfileNotFound
 
 # Defaults 
 default_output_file = "launch_configurations.csv"
@@ -43,7 +45,6 @@ if args.organization and (args.role is None):
 # Logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -54,9 +55,27 @@ logger.addHandler(handler)
 errors = []
 
 # Client
-session = boto3.Session(profile_name=args.profile)
-sts=session.client('sts')
+if os.environ['AWS_EXECUTION_ENV'] == 'CloudShell':
 
+    try:
+        session = boto3.Session(profile_name=args.profile)
+        sts=session.client('sts')
+
+    except Exception as e:
+        message = 'Could not load credentials: {} : {}'.format(args.profile, e)
+        logger.error(message)
+    
+else:
+
+    try:
+        session = boto3.Session(profile_name=args.profile)
+        sts=session.client('sts')
+
+    except ProfileNotFound as e:
+        message = 'Could not load profile: {} : {}'.format(args.profile, e)
+        logger.error(message)
+
+# Paginates Responses from API Calls
 def paginate(method, **kwargs):
     client = method.__self__
 
@@ -71,12 +90,13 @@ def paginate(method, **kwargs):
         logger.error(message)
         raise Exception(message)
 
+# Gets a List of Accounts in Organization
 def get_organization_accounts():
     logger.info("Getting a list of accounts in this organization.")
 
     accounts = []
 
-    organizations = boto3.client('organizations')
+    organizations = session.client('organizations')
 
     response = paginate(organizations.list_accounts)
     for account in response:
@@ -84,6 +104,7 @@ def get_organization_accounts():
 
     return accounts
 
+# Gets Regions Enabled for Account
 def get_regions(account, **credentials):
     logger.info('Getting a list of regions enabled for account {}.'.format(account['Id']))
 
@@ -110,6 +131,7 @@ def get_regions(account, **credentials):
     
     return regions 
 
+# Gets Launch Configurations in Account and Region
 def get_launch_configurations(account, region, **credentials):
     logger.info('Getting Launch Configurations for Region: {}'.format(region)) 
 
@@ -141,7 +163,8 @@ def get_launch_configurations(account, region, **credentials):
 
     return {}
 
-def write_output_file(inventory):
+# Writes an Inventory File of Launch Configurations
+def write_inventory_file(inventory):
 
     logger.info('Saving results to output file: {}'.format(args.file))
 
@@ -160,6 +183,7 @@ def write_output_file(inventory):
 
     return
 
+# Writes an Error File of Any Errors
 def write_error_file(errors):
 
     logger.info('Saving errors to error file: {}'.format(args.errorfile))
@@ -179,13 +203,19 @@ def write_error_file(errors):
 
     return
 
+# Outputs Summary of Inventory
 def write_summary(inventory):
 
-    total = 0
-    for item in inventory:
-        total = total + item['count']
+    launch_configurations = 0
+    accounts = []
+    regions = []
 
-    logger.info('You have {} launch configurations across {} regions.'.format(total, len(inventory)))
+    for item in inventory:
+        launch_configurations = launch_configurations + item['count']
+        if item['account_id'] not in accounts: accounts.append(item['account_id'])
+        if item['region'] not in regions: regions.append(item['region'])
+
+    logger.info('You have {} launch configurations across {} accounts and {} regions.'.format(launch_configurations, len(accounts), len(regions)))
 
     return
 
@@ -193,9 +223,13 @@ def main():
 
     inventory = []
 
+    # If Inventorying Entire Organization 
     if args.organization is True:
+
+        # Get a List of Accounts in Organization
         accounts = get_organization_accounts()
 
+        # For Each Account, Attempt to Assume Role and Get Launch Configurations
         for account in accounts:
             credentials = {}
             logger.info('Getting launch configurations in account: {}'.format(account['Id']))
@@ -225,6 +259,7 @@ def main():
                     response = get_launch_configurations(account, region, **credentials)
                     inventory.append(response)
 
+            # Catch and Store Errors
             except ClientError as e:
                     message = 'Error setting up session with account: {}'.format(e)
                     logger.error(message)
@@ -232,7 +267,8 @@ def main():
                         'account' : account['Id'],
                         'message' : message
                     })
-        
+
+    # If Not Inventorying Entire Organization    
     else: 
 
         # Get Configured Account Id
@@ -257,9 +293,9 @@ def main():
             inventory.append(response)
 
     # Write Outputs
-    write_output_file(inventory)
-    write_error_file(errors)
+    write_inventory_file(inventory)
     write_summary(inventory)
+    if len(errors) > 0: write_error_file(errors)
     return inventory
 
 if __name__ == "__main__":

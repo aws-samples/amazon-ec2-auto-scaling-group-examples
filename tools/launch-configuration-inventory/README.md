@@ -4,6 +4,14 @@ This example script demonstrates how you can use AWS APIs to create an inventory
 
 ## Running the Script
 
+The simplest way to run this script is to copy it into an AWS CloudShell environment. 
+
+1. Access an [AWS CloudShell Environment](https://docs.aws.amazon.com/cloudshell/latest/userguide/working-with-cloudshell.html)
+2. Copy inventory.py to your local environment.
+```
+curl -O "https://raw.githubusercontent.com/horsfieldsa/amazon-ec2-auto-scaling-group-examples/launch-configuration-inventory/tools/launch-configuration-inventory/inventory.py"
+```
+
 ### Prerequisites
 
 * An installed and configured AWS CLI
