@@ -1,45 +1,53 @@
 # Launch Configuration Inventory Script
 
-This example script demonstrates how you can use AWS APIs to create an inventory of Launch Configurations in an AWS account across all regions active for that account. 
+This example script demonstrates how you can use AWS APIs to create an inventory of Launch Configurations in a single AWS account, or an entire AWS Organization. 
 
 ## Running the Script
 
-The simplest way to run this script is to copy it into an AWS CloudShell environment. 
+The simplest way to run this script is to copy it into an AWS CloudShell environment and execute it. 
 
 1. Access an [AWS CloudShell Environment](https://docs.aws.amazon.com/cloudshell/latest/userguide/working-with-cloudshell.html)
 2. Copy inventory.py to your local environment.
 ```
 curl -O "https://raw.githubusercontent.com/horsfieldsa/amazon-ec2-auto-scaling-group-examples/launch-configuration-inventory/tools/launch-configuration-inventory/inventory.py"
 ```
-3. Execute the script with the following optional arguments. Ommitting all arguments will inventory a single account using the configured credentials in your default profile.
+3. Execute the script with the following arguments. See the examples below for some suggestions. For a CloudShell environment you should use the -r argument to specific a ROLE to assume, ie: `python3 inventory.py -r arn:aws:iam::[ACCOUNT_ID]:role/[ROLE_NAME]`
 
 ```
-usage: inventory.py [-h] [-p PROFILE] [-f FILE] [-e ERRORFILE] [-o] [-r ROLE]
+usage: inventory.py [-h] [-f FILE] [-o] [-p PROFILE] [-or ORG_ROLE_NAME] [-r ROLE_ARN]
 
 Generate an inventory of Launch Configurations.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -p PROFILE, --profile PROFILE
-                        Use a specific AWS config profile
   -f FILE, --file FILE  Directs the output to a file of your choice
-  -e ERRORFILE, --errorfile ERRORFILE
-                        Directs the output to a file of your choice
-  -o, --organization    Scan all accounts in current organization.
-  -r ROLE, --role ROLE  Role that will be assumed in accounts for inventory.
+  -o, --org             Scan all accounts in current organization.
+  -p PROFILE, --profile PROFILE
+                        Use a specific AWS config profile, defaults to default profile.
+  -or ORG_ROLE_NAME, --org_role_name ORG_ROLE_NAME
+                        Name of role that will be assumed to make API calls in Org accounts, required for Org.
+  -r ROLE_ARN, --role_arn ROLE_ARN
+                        Arn of role that will be assumed to make API calls instead of profile credentials.
 ```
 
 ## Examples
 
-Inventories all accounts in the current Organization using the a role named OrganizationAccountAccessRole
+Performs an inventory using the configured credentials in your default profile.
 ```
-python3 inventory.py -o -r OrganizationAccountAccessRole
+python3 inventory.py
 ```
 
+Performs an inventory using the configured credentials in a profile named PROFILE_NAME.
+```
+python3 inventory.py -p PROFILE_NAME
+```
 
-## Required Permissions
+Performs an inventory of an account by assuming the provided role ARN.
+```
+python3 inventory.py -r arn:aws:iam::[ACCOUNT_ID]:role/[ROLE_NAME]
+```
 
-* ec2:DescribeRegions
-* organiztions:ListAccounts
-* autoscaling:DescribeLaunchConfigurations
-* sts:AssumeRole
+Performs an inventory of all accounts in an AWS Organization by assuming the provided role ARN to get a list of accounts and then assumes a role named ORG_ROLE_NAME in each account in the organization.
+```
+python3 inventory.py -o -or [ORG_ROLE_NAME] -r arn:aws:iam::[ACCOUNT_ID]:role/[ROLE_NAME]
+```
