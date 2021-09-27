@@ -18,7 +18,6 @@ import logging
 import sys
 import csv
 import argparse
-import os
 
 from botocore.exceptions import ClientError
 
@@ -258,6 +257,7 @@ def main():
         # Inventorying Single Account
         if args.org is False:
             account_id = boto3.client('sts', **credentials).get_caller_identity().get('Account')
+
             logger.info('Getting inventory for account {}:'.format(account_id))
 
             regions = get_regions(account_id, credentials)
