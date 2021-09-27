@@ -28,10 +28,11 @@ default_aws_profile = 'default'
 
 # Arguments
 parser = argparse.ArgumentParser(description='Generate an inventory of Launch Configurations.')
-parser.add_argument("-f", "--file",         help="Directs the output to a file of your choice", default=default_output_file)
-parser.add_argument("-o", "--org",          help="Scan all accounts in current organization.", action='store_true')
-parser.add_argument("-p", "--profile",      help='Use a specific AWS config profile, defaults to default profile.')
-parser.add_argument("-or", "--org_role_name",    help="Name of role that will be assumed to make API calls, required for Org.")
+parser.add_argument("-f",  "--file",             help="Directs the output to a file of your choice", default=default_output_file)
+parser.add_argument("-o",  "--org",              help="Scan all accounts in current organization.", action='store_true')
+parser.add_argument("-p",  "--profile",          help='Use a specific AWS config profile, defaults to default profile.')
+parser.add_argument("-or", "--org_role_name",   help="Name of role that will be assumed to make API calls in Org accounts, required for Org.")
+parser.add_argument("-r",  "--role_arn",         help="Arn of role that will be assumed to make API calls instead of profile credentials.")
 parser.set_defaults(org=False)
 args = parser.parse_args()
 
@@ -47,36 +48,17 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-def get_credentials_for_environment(environment_name):
-
-    logger.info('Attempting to get credentials for environment: {}'.format(environment_name))
-
-    if environment_name == 'CloudShell':
-        try:
-
-            session = boto3.Session()
-            session_credentials = session.get_credentials() 
-            credentials = {
-                'aws_access_key_id'     : session_credentials.access_key,
-                'aws_secret_access_key' : session_credentials.secret_key
-            }
-            return credentials
-
-        except Exception as e:
-            message = 'Could not get credentiala for environment: {} : {}'.format(environment_name, e)
-            logger.error(message)
-            return None
-
-    else:
-        return None
-
-# Get and Return Credentials
+# Get and Return Credentials for Organization Role
 def get_credentials_for_role(role_arn, credentials):
 
     logger.info('Attempting to assume role: {}'.format(role_arn))
 
     try:
-        sts=boto3.client('sts', **credentials)
+        sts = None
+        if credentials: 
+            sts = boto3.client('sts', **credentials)
+        else:
+            sts = boto3.client('sts')
 
         response = sts.assume_role(
                     RoleArn=role_arn,
@@ -230,13 +212,14 @@ def main():
 
     inventory = []
     profile_name = args.profile
+    role_arn = args.role_arn
     org_role_name = args.org_role_name
     inventory_file = args.file
 
     # Get Credentials From Profile or Environment
     credentials = None   
-    if 'AWS_EXECUTION_ENV' in os.environ and os.environ['AWS_EXECUTION_ENV'] == 'CloudShell':
-        credentials = get_credentials_for_environment('CloudShell')
+    if role_arn:
+        credentials = get_credentials_for_role(role_arn, None)
     else:
         credentials = get_credentials_for_profile(profile_name)
 
@@ -256,7 +239,7 @@ def main():
                     # Setup Session in Account
                     role_arn = 'arn:aws:iam::{}:role/{}'.format(account_id, org_role_name)
                     logger.info('Getting credentials to inventory account: {}'.format(account_id))
-                    role_credentials = get_credentials_for_role(role_arn, credentials)
+                    role_credentials = get_credentials_for_org_role(role_arn, credentials)
 
                     if role_credentials is not None:
 
