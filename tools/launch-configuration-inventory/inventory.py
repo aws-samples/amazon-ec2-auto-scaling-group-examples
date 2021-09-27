@@ -21,26 +21,22 @@ import argparse
 import os
 
 from botocore.exceptions import ClientError
-from botocore.exceptions import ProfileNotFound
 
 # Defaults 
-default_output_file = "launch_configurations.csv"
-default_error_file = "errors.csv"
-default_entire_org  = False
+default_output_file = "inventory.csv"
 default_aws_profile = 'default'
 
 # Arguments
 parser = argparse.ArgumentParser(description='Generate an inventory of Launch Configurations.')
-parser.add_argument("-p", "--profile", help='Use a specific AWS config profile', default=default_aws_profile)
-parser.add_argument("-f", "--file", help="Directs the output to a file of your choice", default=default_output_file)
-parser.add_argument("-e", "--errorfile", help="Directs the output to a file of your choice", default=default_error_file)
-parser.add_argument("-o","--organization",help="Scan all accounts in current organization.", action='store_true')
-parser.add_argument("-r","--role",help="Role that will be assumed in accounts for inventory.")
+parser.add_argument("-f", "--file",         help="Directs the output to a file of your choice", default=default_output_file)
+parser.add_argument("-o", "--org",          help="Scan all accounts in current organization.", action='store_true')
+parser.add_argument("-p", "--profile",      help='Use a specific AWS config profile, defaults to default profile.')
+parser.add_argument("-or", "--org_role_name",    help="Name of role that will be assumed to make API calls, required for Org.")
 parser.set_defaults(org=False)
 args = parser.parse_args()
 
-if args.organization and (args.role is None):
-    parser.error("--organization requires --role")
+if args.org and (args.org_role_name is None):
+    parser.error("--org requires --org_role_name")
 
 # Logging
 logger = logging.getLogger()
@@ -51,34 +47,73 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-# Globals
-errors = []
-session = None
-sts = None
+def get_credentials_for_environment(environment_name):
 
-# Client
-if 'AWS_EXECUTION_ENV' in os.environ:
-    if os.environ['AWS_EXECUTION_ENV'] == 'CloudShell':
+    logger.info('Attempting to get credentials for environment: {}'.format(environment_name))
 
+    if environment_name == 'CloudShell':
         try:
-            session = boto3.Session(profile_name=args.profile)
-            sts=session.client('sts')
+
+            session = boto3.Session()
+            session_credentials = session.get_credentials() 
+            credentials = {
+                'aws_access_key_id'     : session_credentials.access_key,
+                'aws_secret_access_key' : session_credentials.secret_key
+            }
+            return credentials
 
         except Exception as e:
-            message = 'Could not load credentials: {} : {}'.format(args.profile, e)
+            message = 'Could not get credentiala for environment: {} : {}'.format(environment_name, e)
             logger.error(message)
-            
-    # Handle Other Execution Environments
-    
-else:
+            return None
+
+    else:
+        return None
+
+# Get and Return Credentials
+def get_credentials_for_role(role_arn, credentials):
+
+    logger.info('Attempting to assume role: {}'.format(role_arn))
 
     try:
-        session = boto3.Session(profile_name=args.profile)
-        sts=session.client('sts')
+        sts=boto3.client('sts', **credentials)
 
-    except ProfileNotFound as e:
-        message = 'Could not load profile: {} : {}'.format(args.profile, e)
+        response = sts.assume_role(
+                    RoleArn=role_arn,
+                    RoleSessionName="RoleAssume"
+                )
+
+        # Get Credentials From Session
+        credentials = {
+            'aws_access_key_id'     : response["Credentials"]["AccessKeyId"],
+            'aws_secret_access_key' : response["Credentials"]["SecretAccessKey"],
+            'aws_session_token'     : response["Credentials"]["SessionToken"],
+        }
+
+        return credentials
+
+    except Exception as e:
+        message = 'Could not assume role: {} : {}'.format(role_arn, e)
         logger.error(message)
+        return None
+
+def get_credentials_for_profile(profile_name):
+    logger.info('Attempting to get credentials for profile: {}'.format(profile_name))
+
+    try:
+
+        session = boto3.Session(profile_name=profile_name)
+        session_credentials = session.get_credentials() 
+        credentials = {
+            'aws_access_key_id'     : session_credentials.access_key,
+            'aws_secret_access_key' : session_credentials.secret_key
+        }
+        return credentials
+
+    except Exception as e:
+        message = 'Could not load profile: {} : {}'.format(profile_name, e)
+        logger.error(message)
+        return None
 
 # Paginates Responses from API Calls
 def paginate(method, **kwargs):
@@ -96,28 +131,25 @@ def paginate(method, **kwargs):
         raise Exception(message)
 
 # Gets a List of Accounts in Organization
-def get_organization_accounts():
+def get_organization_accounts(credentials):
     logger.info("Getting a list of accounts in this organization.")
 
     accounts = []
-
-    organizations = session.client('organizations')
-
+    organizations = boto3.client('organizations', **credentials)
     response = paginate(organizations.list_accounts)
+
     for account in response:
         accounts.append(account)
 
     return accounts
 
 # Gets Regions Enabled for Account
-def get_regions(account, **credentials):
-    logger.info('Getting a list of regions enabled for account {}.'.format(account['Id']))
+def get_regions(account_id, credentials):
+    logger.info('Getting a list of regions enabled for account {}.'.format(account_id))
 
     regions = []
-
     try:
-        ec2 = boto3.client('ec2',
-            **credentials)
+        ec2 = boto3.client('ec2', **credentials)
 
         response = ec2.describe_regions(
             AllRegions=False
@@ -129,15 +161,11 @@ def get_regions(account, **credentials):
     except ClientError as e:
         message = 'Error getting list of regions: {}'.format(e)
         logger.error(message)
-        errors.append({
-                        'account' : account['Id'],
-                        'message' : message
-                    })
     
     return regions 
 
 # Gets Launch Configurations in Account and Region
-def get_launch_configurations(account, region, **credentials):
+def get_launch_configurations(account_id, region, credentials):
     logger.info('Getting Launch Configurations for Region: {}'.format(region)) 
 
     launch_configurations = []
@@ -151,8 +179,7 @@ def get_launch_configurations(account, region, **credentials):
             launch_configurations.append(launch_configuration['LaunchConfigurationName'])
 
         return {
-            'account_id'             : account['Id'],
-            'account_name'           : account['Name'],
+            'account_id'            : account_id,
             'region'                : region,
             'count'                 : len(launch_configurations),
             'launch_configuratons'  : launch_configurations
@@ -161,43 +188,18 @@ def get_launch_configurations(account, region, **credentials):
     except ClientError as e:
         message = 'Error getting list of launch configurations: {}'.format(e)
         logger.error(message)
-        errors.append({
-                        'account' : account['Id'],
-                        'message' : message
-                    })
 
     return {}
 
 # Writes an Inventory File of Launch Configurations
-def write_inventory_file(inventory):
+def write_inventory_file(file, inventory):
+    logger.info('Saving results to output file: {}'.format(file))
 
-    logger.info('Saving results to output file: {}'.format(args.file))
-
-    data_file = open(args.file, 'w', newline='')
+    data_file = open(file, 'w', newline='')
     csv_writer = csv.writer(data_file)
     
     count = 0
     for data in inventory:
-        if count == 0:
-            header = data.keys()
-            csv_writer.writerow(header)
-            count += 1
-        csv_writer.writerow(data.values())
-    
-    data_file.close()
-
-    return
-
-# Writes an Error File of Any Errors
-def write_error_file(errors):
-
-    logger.info('Saving errors to error file: {}'.format(args.errorfile))
-
-    data_file = open(args.errorfile, 'w', newline='')
-    csv_writer = csv.writer(data_file)
-    
-    count = 0
-    for data in errors:
         if count == 0:
             header = data.keys()
             csv_writer.writerow(header)
@@ -227,81 +229,70 @@ def write_summary(inventory):
 def main():
 
     inventory = []
+    profile_name = args.profile
+    org_role_name = args.org_role_name
+    inventory_file = args.file
 
-    # If Inventorying Entire Organization 
-    if args.organization is True:
+    # Get Credentials From Profile or Environment
+    credentials = None   
+    if 'AWS_EXECUTION_ENV' in os.environ and os.environ['AWS_EXECUTION_ENV'] == 'CloudShell':
+        credentials = get_credentials_for_environment('CloudShell')
+    else:
+        credentials = get_credentials_for_profile(profile_name)
 
-        # Get a List of Accounts in Organization
-        accounts = get_organization_accounts()
+    if credentials is not None:
 
-        # For Each Account, Attempt to Assume Role and Get Launch Configurations
-        for account in accounts:
-            credentials = {}
-            logger.info('Getting launch configurations in account: {}'.format(account['Id']))
+        # Inventorying Entire Organization
+        if args.org is True:
+            logger.info('Getting list of accounts in the Organization.')
+            accounts = get_organization_accounts(credentials)
 
-            try: 
+            # For Each Account, Attempt to Assume Role and Get Launch Configurations
+            for account in accounts:
+                account_id = account['Id']
+                logger.info('Inventorying account: {}'.format(account_id))
 
-                # Setup Session in Account
-                role_arn = 'arn:aws:iam::{}:role/{}'.format(account['Id'], args.role)
-                logger.info('Attempting to assume role: {}'.format(role_arn))
-                response = sts.assume_role(
-                    RoleArn=role_arn,
-                    RoleSessionName='session{}'.format(account['Id'])
-                )
+                try: 
+                    # Setup Session in Account
+                    role_arn = 'arn:aws:iam::{}:role/{}'.format(account_id, org_role_name)
+                    logger.info('Getting credentials to inventory account: {}'.format(account_id))
+                    role_credentials = get_credentials_for_role(role_arn, credentials)
 
-                # Get Credentials From Session
-                credentials = {
-                    'aws_access_key_id'     : response["Credentials"]["AccessKeyId"],
-                    'aws_secret_access_key' : response["Credentials"]["SecretAccessKey"],
-                    'aws_session_token'     : response["Credentials"]["SessionToken"],
-                }
+                    if role_credentials is not None:
 
-                # Get List of Regions Enabled for Account
-                regions = get_regions(account, **credentials)
+                        # Get List of Regions Enabled for Account
+                        regions = get_regions(account_id, role_credentials)
 
-                # For Each Region Get Launch Configurations
-                for region in regions:
-                    response = get_launch_configurations(account, region, **credentials)
-                    inventory.append(response)
+                        # For Each Region Get Launch Configurations
+                        for region in regions:
+                            response = get_launch_configurations(account_id, region, role_credentials)
+                            inventory.append(response)
 
-            # Catch and Store Errors
-            except ClientError as e:
-                    message = 'Error setting up session with account: {}'.format(e)
-                    logger.error(message)
-                    errors.append({
-                        'account' : account['Id'],
-                        'message' : message
-                    })
+                # Catch and Store Errors
+                except ClientError as e:
+                        message = 'Error setting up session with account: {}'.format(e)
+                        logger.error(message)
 
-    # If Not Inventorying Entire Organization    
-    else: 
+        # Inventorying Single Account
+        if args.org is False:
+            account_id = boto3.client('sts', **credentials).get_caller_identity().get('Account')
+            logger.info('Getting inventory for account {}:'.format(account_id))
 
-        # Get Configured Account Id
-        account = {
-         'Name' :  '',
-         'Id'   :  sts.get_caller_identity().get('Account')
-        }
+            regions = get_regions(account_id, credentials)
 
-        # Get Credentials From Session
-        session_credentials = session.get_credentials() 
-        credentials = {
-            'aws_access_key_id'     : session_credentials.access_key,
-            'aws_secret_access_key' : session_credentials.secret_key,
-        }
-        
-        # Get List of Regions Enabled for Account
-        regions = get_regions(account, **credentials)
+            # For Each Region Get Launch Configurations
+            for region in regions:
+                response = get_launch_configurations(account_id, region, credentials)
+                inventory.append(response)
+            
+        # Write Outputs
+        write_inventory_file(inventory_file, inventory)
+        write_summary(inventory)
+        return inventory
 
-        # For Each Region Get Launch Configurations
-        for region in regions:
-            response = get_launch_configurations(account, region, **credentials)
-            inventory.append(response)
-
-    # Write Outputs
-    write_inventory_file(inventory)
-    write_summary(inventory)
-    if len(errors) > 0: write_error_file(errors)
-    return inventory
+    else:
+        logger.error("No credentials to perform inventory.")
+        return None
 
 if __name__ == "__main__":
     main()

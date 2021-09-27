@@ -11,21 +11,35 @@ The simplest way to run this script is to copy it into an AWS CloudShell environ
 ```
 curl -O "https://raw.githubusercontent.com/horsfieldsa/amazon-ec2-auto-scaling-group-examples/launch-configuration-inventory/tools/launch-configuration-inventory/inventory.py"
 ```
+3. Execute the script with the following optional arguments. Ommitting all arguments will inventory a single account using the configured credentials in your default profile.
 
-### Prerequisites
+```
+usage: inventory.py [-h] [-p PROFILE] [-f FILE] [-e ERRORFILE] [-o] [-r ROLE]
 
-* An installed and configured AWS CLI
-* Python3 
-* Boto3
+Generate an inventory of Launch Configurations.
 
-### Required Permissions
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PROFILE, --profile PROFILE
+                        Use a specific AWS config profile
+  -f FILE, --file FILE  Directs the output to a file of your choice
+  -e ERRORFILE, --errorfile ERRORFILE
+                        Directs the output to a file of your choice
+  -o, --organization    Scan all accounts in current organization.
+  -r ROLE, --role ROLE  Role that will be assumed in accounts for inventory.
+```
 
-* DescribeRegions
-* 
+## Examples
+
+Inventories all accounts in the current Organization using the a role named OrganizationAccountAccessRole
+```
+python3 inventory.py -o -r OrganizationAccountAccessRole
+```
 
 
-### Running
+## Required Permissions
 
-Run the following command to execute the script. This command will output a file named launched_configurations.csv that contains a list of all launch configurations in the AWS account 
-
-`python3 inventory.py`
+* ec2:DescribeRegions
+* organiztions:ListAccounts
+* autoscaling:DescribeLaunchConfigurations
+* sts:AssumeRole
