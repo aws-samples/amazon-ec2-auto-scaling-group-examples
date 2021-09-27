@@ -227,7 +227,6 @@ def main():
 
         # Inventorying Entire Organization
         if args.org is True:
-            logger.info('Getting list of accounts in the Organization.')
             accounts = get_organization_accounts(credentials)
 
             # For Each Account, Attempt to Assume Role and Get Launch Configurations
