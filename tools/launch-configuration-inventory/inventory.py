@@ -239,7 +239,7 @@ def main():
                     # Setup Session in Account
                     role_arn = 'arn:aws:iam::{}:role/{}'.format(account_id, org_role_name)
                     logger.info('Getting credentials to inventory account: {}'.format(account_id))
-                    role_credentials = get_credentials_for_org_role(role_arn, credentials)
+                    role_credentials = get_credentials_for_role(role_arn, credentials)
 
                     if role_credentials is not None:
 
