@@ -11,7 +11,16 @@ The simplest way to run this script is to copy it into an AWS CloudShell environ
 ```
 curl -O "https://raw.githubusercontent.com/horsfieldsa/amazon-ec2-auto-scaling-group-examples/launch-configuration-inventory/tools/launch-configuration-inventory/inventory.py"
 ```
-3. Execute the script with the following arguments. See the examples below for some suggestions. For a CloudShell environment you should use the -r ROLE_ARN argument to specific a role to assume, ie: `python3 inventory.py -r arn:aws:iam::[ACCOUNT_ID]:role/[ROLE_NAME]` as the script currently does not support CloudShell's inherited credentials.
+3. Execute the script with the below arguments. See the examples below for some suggestions. For a CloudShell environment you should use the -r ROLE_ARN argument to specific a role to assume, ie: `python3 inventory.py -r arn:aws:iam::[ACCOUNT_ID]:role/[ROLE_NAME]` as the script currently does not support CloudShell's inherited credentials.
+
+## Running the Script Locally
+
+If you want to run this script locally, you will need to ensure you have the following installed and configured.
+
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) installed and configured with the required credentials and permissions (see below).
+* [Python 3 installed](https://www.python.org/downloads/)
+
+## Script Syntax and Arguments
 
 ```
 usage: inventory.py [-h] [-f FILE] [-o] [-p PROFILE] [-or ORG_ROLE_NAME] [-r ROLE_ARN]
@@ -29,13 +38,6 @@ optional arguments:
   -r ROLE_ARN, --role_arn ROLE_ARN
                         Arn of role that will be assumed to make API calls instead of profile credentials.
 ```
-
-## Running the Script Locally
-
-If you want to run this script locally, you will need to ensure you have the following installed and configured.
-
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) installed and configured with the required credentials and permissions (see below).
-* [Python 3 installed](https://www.python.org/downloads/)
 
 ## Examples
 
