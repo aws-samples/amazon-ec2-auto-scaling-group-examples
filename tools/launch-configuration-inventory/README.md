@@ -1,10 +1,10 @@
 # Launch Configuration Inventory Script
 
-This example script demonstrates how you can use AWS APIs to create an inventory of Launch Configurations in a single AWS account, or an entire AWS Organization. 
+This example script demonstrates how you can use AWS APIs to create an inventory of Launch Configurations in a single AWS account, or an entire [AWS Organization](https://aws.amazon.com/organizations/). 
 
 ## Running the Script in AWS CloudShell
 
-The simplest way to run this script is to copy it into an AWS CloudShell environment and execute it. 
+The simplest way to run this script is to copy it into an [AWS CloudShell](https://aws.amazon.com/cloudshell/) environment and execute it. 
 
 1. Access an [AWS CloudShell Environment](https://docs.aws.amazon.com/cloudshell/latest/userguide/working-with-cloudshell.html)
 2. Copy inventory.py to your local environment.
@@ -69,7 +69,7 @@ If you need help configuring your AWS CLI profile credentials to be able to assu
 |---            |---                                                      | 
 | NONE          | **Profile Credentials Require**                         |
 |               | - ec2:DescribeRegions                                   |
-|               | - autpscaling:DescribeLaunchConfigurations              |
+|               | - autoscaling:DescribeLaunchConfigurations              |
 |               |                                                         |
 | -r ROLE_ARN   | **Profile Credentials Require**                         |
 |               | - sts:AssumeRole (for ROLE_ARN)                         |
