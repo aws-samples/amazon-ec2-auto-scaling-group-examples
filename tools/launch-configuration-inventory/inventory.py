@@ -27,11 +27,11 @@ default_aws_profile = 'default'
 
 # Arguments
 parser = argparse.ArgumentParser(description='Generate an inventory of Launch Configurations.')
-parser.add_argument("-f",  "--file",             help="Directs the output to a file of your choice", default=default_output_file)
-parser.add_argument("-o",  "--org",              help="Scan all accounts in current organization.", action='store_true')
-parser.add_argument("-p",  "--profile",          help='Use a specific AWS config profile, defaults to default profile.')
-parser.add_argument("-or", "--org_role_name",   help="Name of role that will be assumed to make API calls in Org accounts, required for Org.")
-parser.add_argument("-r",  "--role_arn",         help="Arn of role that will be assumed to make API calls instead of profile credentials.")
+parser.add_argument("-f",  "--file",          help="Directs the output to a file of your choice", default=default_output_file)
+parser.add_argument("-o",  "--org",           help="Scan all accounts in current organization.", action='store_true')
+parser.add_argument("-p",  "--profile",       help='Use a specific AWS config profile, defaults to default profile.')
+parser.add_argument("-or", "--org_role_name", help="Name of role that will be assumed to make API calls in Org accounts, required for Org.")
+parser.add_argument("-r",  "--role_arn",      help="Arn of role that will be assumed to make API calls instead of profile credentials.")
 parser.set_defaults(org=False)
 args = parser.parse_args()
 
@@ -78,11 +78,11 @@ def get_credentials_for_role(role_arn, credentials):
         logger.error(message)
         return None
 
+# Get and Return Credentials for Provided AWS Profile
 def get_credentials_for_profile(profile_name):
     logger.info('Attempting to get credentials for profile: {}'.format(profile_name))
 
     try:
-
         session = boto3.Session(profile_name=profile_name)
         session_credentials = session.get_credentials() 
         credentials = {
@@ -116,11 +116,18 @@ def get_organization_accounts(credentials):
     logger.info("Getting a list of accounts in this organization.")
 
     accounts = []
-    organizations = boto3.client('organizations', **credentials)
-    response = paginate(organizations.list_accounts)
+    try:
+        organizations = boto3.client('organizations', **credentials)
+        response = paginate(organizations.list_accounts)
 
-    for account in response:
-        accounts.append(account)
+        for account in response:
+            accounts.append(account)
+
+        return accounts
+
+    except ClientError as e:
+        message = 'Error getting a list of accounts in the organization: {}'.format(e)
+        logger.error(message)
 
     return accounts
 
@@ -150,7 +157,6 @@ def get_launch_configurations(account_id, region, credentials):
     logger.info('Getting Launch Configurations for Region: {}'.format(region)) 
 
     launch_configurations = []
-
     try: 
         autoscaling = boto3.client('autoscaling', region_name=region, **credentials)
 

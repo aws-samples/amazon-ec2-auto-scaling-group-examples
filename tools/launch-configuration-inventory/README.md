@@ -2,7 +2,7 @@
 
 This example script demonstrates how you can use AWS APIs to create an inventory of Launch Configurations in a single AWS account, or an entire AWS Organization. 
 
-## Running the Script
+## Running the Script in AWS CloudShell
 
 The simplest way to run this script is to copy it into an AWS CloudShell environment and execute it. 
 
@@ -30,6 +30,13 @@ optional arguments:
                         Arn of role that will be assumed to make API calls instead of profile credentials.
 ```
 
+## Running the Script Locally
+
+If you want to run this script locally, you will need to ensure you have the following installed and configured.
+
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) installed and configured with the required credentials and permissions (see below).
+* [Python 3 installed](https://www.python.org/downloads/)
+
 ## Examples
 
 Performs an inventory using the configured credentials in your default profile.
@@ -54,40 +61,28 @@ python3 inventory.py -o -or ORG_ROLE_NAME -r arn:aws:iam::ACCOUNT_ID:role/ROLE_N
 
 ## Required Permissions
 
-### If you are inventorying a single account and are not using the -r argument then your profile credentials need.
+If you need help configuring your AWS CLI profile credentials to be able to assume a role, we suggest this [knowledge center article](https://aws.amazon.com/premiumsupport/knowledge-center/iam-assume-role-cli/).
 
-* ec2:DescribeRegions
-* autoscaling:DescribeLaunchConfigurations
-
-### If you are inventorying a single account and using the -r argument then your profile credentials need.
-
-* sts:AssumeRole (For the role specified with the argument -r ROLE_ARN)
-
-and the role you are assuming with the -r ROLE_ARN argument needs:
-
-* ec2:DescribeRegions
-* autoscaling:DescribeLaunchConfigurations
-
-### If you are inventorying all accounts in an organization and are not using the -r argument then your profile credentials need.
-
-* sts:AssumeRole  (For the role specified with the argument -or ROLE_NAME)
-* organizations:ListAccounts
-
-and the role you are assuming in each account using -or ORG_ROLE_NAME needs:
-
-* ec2:DescribeRegions
-* autoscaling:DescribeLaunchConfigurations
-
-### If you are inventorying all accounts in an organization and using the -r argument then your profile credentials need.
-
-* sts:AssumeRole (For the role specified with the argument -r ROLE_ARN)
-
-and the role you are assuming with the -r ROLE_ARN argument needs:
-
-* sts:AssumeRole (For the role specified with the argument -or ORG_ROLE_NAME)
-* organizations:ListAccounts
-
-and the role you are assuming in each account using -or ORG_ROLE_NAME needs:
-
-* ec2:DescribeRegions
-* autoscaling:DescribeLaunchConfigurations
+| Argument      | Permissions                                             |
+|---            |---                                                      | 
+| NONE          | **Profile Credentials Require**                         |
+|               | - ec2:DescribeRegions                                   |
+|               | - autpscaling:DescribeLaunchConfigurations              |
+|               |                                                         |
+| -r ROLE_ARN   | **Profile Credentials Require**                         |
+|               | - sts:AssumeRole (for ROLE_ARN)                         |
+|               | **ROLE_ARN Requires**                                   |
+|               | - ec2:DescribeRegions                                   |
+|               | - autoscaling:DescribeLaunchConfigurations              |
+|               | - organizations:ListAccounts                            |
+|               | - sts:AssumeRole (for ROLE_NAME if using -o and -or)    |
+|               |                                                         |
+| -o            | **Profile Credentials Require**                         |
+|               | - sts:AssumeRole(for ROLE_NAME or ROLE_ARN if using -r) |
+|               | - organizations:ListAccounts (if not using -r)          |
+|               |                                                         |
+| -or ROLE_NAME | **Profile Credentials Require**                         |
+|               | - sts:AssumeRole(for ROLE_NAME)                         |
+|               | **ROLE_NAME Requires**                                  |
+|               | - ec2:DescribeRegions                                   |
+|               | - autoscaling:DescribeLaunchConfigurations              |
