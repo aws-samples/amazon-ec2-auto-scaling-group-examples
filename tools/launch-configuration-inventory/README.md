@@ -39,6 +39,58 @@ optional arguments:
                         Arn of role that will be assumed to make API calls instead of profile credentials.
 ```
 
+## Script Output
+
+```
+# python3 inventory.py -r arn:aws:iam::ACCOUNT_ID:role/OrganizationAccountAccessRole
+2021-09-28 11:27:59,886 - INFO - Attempting to assume role: arn:aws:iam::ACCOUNT_ID:role/OrganizationAccountAccessRole
+2021-09-28 11:27:59,900 - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2021-09-28 11:28:00,900 - INFO - Getting inventory for account ACCOUNT_ID:
+2021-09-28 11:28:00,900 - INFO - Getting a list of regions enabled for account ACCOUNT_ID.
+2021-09-28 11:28:01,135 - INFO - Getting Launch Configurations for Region: eu-north-1
+2021-09-28 11:28:02,096 - INFO - Getting Launch Configurations for Region: ap-south-1
+2021-09-28 11:28:03,366 - INFO - Getting Launch Configurations for Region: eu-west-3
+2021-09-28 11:28:04,221 - INFO - Getting Launch Configurations for Region: eu-west-2
+2021-09-28 11:28:04,987 - INFO - Getting Launch Configurations for Region: eu-west-1
+2021-09-28 11:28:05,821 - INFO - Getting Launch Configurations for Region: ap-northeast-3
+2021-09-28 11:28:06,475 - INFO - Getting Launch Configurations for Region: ap-northeast-2
+2021-09-28 11:28:07,201 - INFO - Getting Launch Configurations for Region: ap-northeast-1
+2021-09-28 11:28:07,859 - INFO - Getting Launch Configurations for Region: sa-east-1
+2021-09-28 11:28:08,830 - INFO - Getting Launch Configurations for Region: ca-central-1
+2021-09-28 11:28:09,388 - INFO - Getting Launch Configurations for Region: ap-southeast-1
+2021-09-28 11:28:10,457 - INFO - Getting Launch Configurations for Region: ap-southeast-2
+2021-09-28 11:28:11,262 - INFO - Getting Launch Configurations for Region: eu-central-1
+2021-09-28 11:28:12,338 - INFO - Getting Launch Configurations for Region: us-east-1
+2021-09-28 11:28:13,195 - INFO - Getting Launch Configurations for Region: us-east-2
+2021-09-28 11:28:14,226 - INFO - Getting Launch Configurations for Region: us-west-1
+2021-09-28 11:28:14,879 - INFO - Getting Launch Configurations for Region: us-west-2
+2021-09-28 11:28:15,592 - INFO - Saving results to output file: inventory.csv
+2021-09-28 11:28:15,593 - INFO - You have 3 launch configurations across 1 accounts and 17 regions.
+```
+
+## Output File
+
+```
+account_id,region,count,launch_configuratons
+ACCOUNT_ID,eu-north-1,0,[]
+ACCOUNT_ID,ap-south-1,0,[]
+ACCOUNT_ID,eu-west-3,0,[]
+ACCOUNT_ID,eu-west-2,0,[]
+ACCOUNT_ID,eu-west-1,0,[]
+ACCOUNT_ID,ap-northeast-3,0,[]
+ACCOUNT_ID,ap-northeast-2,0,[]
+ACCOUNT_ID,ap-northeast-1,0,[]
+ACCOUNT_ID,sa-east-1,0,[]
+ACCOUNT_ID,ca-central-1,0,[]
+ACCOUNT_ID,ap-southeast-1,0,[]
+ACCOUNT_ID,ap-southeast-2,0,[]
+ACCOUNT_ID,eu-central-1,0,[]
+ACCOUNT_ID,us-east-1,0,[]
+ACCOUNT_ID,us-east-2,0,[]
+ACCOUNT_ID,us-west-1,0,[]
+ACCOUNT_ID,us-west-2,3,"['ExampleOne', 'ExampleTwo', 'test']"
+```
+
 ## Examples
 
 Performs an inventory using the configured credentials in your default profile.
