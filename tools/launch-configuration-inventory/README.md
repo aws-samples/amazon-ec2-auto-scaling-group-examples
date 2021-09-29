@@ -37,6 +37,7 @@ optional arguments:
                         Name of role that will be assumed to make API calls in Org accounts, required for Org.
   -r ROLE_ARN, --role_arn ROLE_ARN
                         Arn of role that will be assumed to make API calls instead of profile credentials.
+  -i, --in_use          Inventories only the launch configurations that are currently in-use.
 ```
 
 ## Script Output
@@ -118,6 +119,11 @@ Performs an inventory using the configured credentials in your default profile.
 python3 inventory.py
 ```
 
+Performs an inventory of in-use launch configurations using the configured credentials in your default profile. **Note: In-use means that they are actively associated with an Auto Scaling group.**
+```
+python3 inventory.py -i
+```
+
 Performs an inventory using the configured credentials in a profile named PROFILE_NAME.
 ```
 python3 inventory.py -p PROFILE_NAME
@@ -137,26 +143,32 @@ python3 inventory.py -o -or ORG_ROLE_NAME -r arn:aws:iam::ACCOUNT_ID:role/ROLE_N
 
 If you need help configuring your AWS CLI profile credentials to be able to assume a role, we suggest this [knowledge center article](https://aws.amazon.com/premiumsupport/knowledge-center/iam-assume-role-cli/).
 
-| Argument      | Permissions                                             |
-|---            |---                                                      | 
-| NONE          | **Profile Credentials Require**                         |
-|               | - ec2:DescribeRegions                                   |
-|               | - autoscaling:DescribeLaunchConfigurations              |
-|               |                                                         |
-| -r ROLE_ARN   | **Profile Credentials Require**                         |
-|               | - sts:AssumeRole (for ROLE_ARN)                         |
-|               | **ROLE_ARN Requires**                                   |
-|               | - ec2:DescribeRegions                                   |
-|               | - autoscaling:DescribeLaunchConfigurations              |
-|               | - organizations:ListAccounts                            |
-|               | - sts:AssumeRole (for ROLE_NAME if using -o and -or)    |
-|               |                                                         |
-| -o            | **Profile Credentials Require**                         |
-|               | - sts:AssumeRole(for ROLE_NAME or ROLE_ARN if using -r) |
-|               | - organizations:ListAccounts (if not using -r)          |
-|               |                                                         |
-| -or ROLE_NAME | **Profile Credentials Require**                         |
-|               | - sts:AssumeRole(for ROLE_NAME)                         |
-|               | **ROLE_NAME Requires**                                  |
-|               | - ec2:DescribeRegions                                   |
-|               | - autoscaling:DescribeLaunchConfigurations              |
+| Argument      | Permissions                                              |
+|---            |---                                                       | 
+| NONE          | **Profile Credentials Require**                          |
+|               | - ec2:DescribeRegions                                    |
+|               | - autoscaling:DescribeLaunchConfigurations               |
+|               |                                                          |
+| -r ROLE_ARN   | **Profile Credentials Require**                          |
+|               | - sts:AssumeRole (for ROLE_ARN)                          |
+|               | **ROLE_ARN Requires**                                    |
+|               | - ec2:DescribeRegions                                    |
+|               | - autoscaling:DescribeLaunchConfigurations               |
+|               | - autoscaling:DescribeAutoScalingGroups                  |
+|               | - organizations:ListAccounts                             |
+|               | - sts:AssumeRole (for ROLE_NAME if using -o and -or)     |
+|               |                                                          |
+| -o            | **Profile Credentials Require**                          |
+|               | - sts:AssumeRole(for ROLE_NAME or ROLE_ARN if using -r)  |
+|               | - organizations:ListAccounts (if not using -r)           |
+|               |                                                          |
+| -or ROLE_NAME | **Profile Credentials Require**                          |
+|               | - sts:AssumeRole(for ROLE_NAME)                          |
+|               | **ROLE_NAME Requires**                                   |
+|               | - ec2:DescribeRegions                                    |
+|               | - autoscaling:DescribeLaunchConfigurations               |
+|               |                                                          |
+| -i            | **Profile Credentials Require**                          |
+|               | - autoscaling:DescribeAutoScalingGroups (if not using -r)|
+|               | **ROLE_NAME Requires**                                   |
+|               | - autoscaling:DescribeAutoScalingGroups                  |

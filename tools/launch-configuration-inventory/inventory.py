@@ -32,7 +32,10 @@ parser.add_argument("-o",  "--org",           help="Scan all accounts in current
 parser.add_argument("-p",  "--profile",       help='Use a specific AWS config profile, defaults to default profile.')
 parser.add_argument("-or", "--org_role_name", help="Name of role that will be assumed to make API calls in Org accounts, required for Org.")
 parser.add_argument("-r",  "--role_arn",      help="Arn of role that will be assumed to make API calls instead of profile credentials.")
+parser.add_argument("-i",  "--in_use",        help="Inventories only the launch configurations that are currently in-use.", action='store_true')
+
 parser.set_defaults(org=False)
+parser.set_defaults(in_use=False)
 args = parser.parse_args()
 
 if args.org and (args.org_role_name is None):
@@ -178,6 +181,37 @@ def get_launch_configurations(account_id, region, credentials):
 
     return {}
 
+# Gets Launch Configurations In-Use in Account and Region
+def get_launch_configurations_in_use(account_id, region, credentials):
+    logger.info('Getting Launch Configurations In-Use for Region: {}'.format(region)) 
+
+    launch_configurations = []
+    try: 
+        autoscaling = boto3.client('autoscaling', region_name=region, **credentials)
+
+        response = paginate(autoscaling.describe_auto_scaling_groups)
+        
+        for auto_scaling_group in response:
+            if 'LaunchConfigurationName' in auto_scaling_group:
+                launch_configurations.append({
+                    'auto_scaling_group'   : auto_scaling_group['AutoScalingGroupName'],
+                    'launch_configuration' : auto_scaling_group['LaunchConfigurationName']
+                    })
+
+        return {
+            'account_id'            : account_id,
+            'region'                : region,
+            'count'                 : len(launch_configurations),
+            'launch_configuratons'  : launch_configurations
+        }
+
+    except ClientError as e:
+        message = 'Error getting list of launch configurations: {}'.format(e)
+        logger.error(message)
+
+    return {}
+
+
 # Writes an Inventory File of Launch Configurations
 def write_inventory_file(file, inventory):
     logger.info('Saving results to output file: {}'.format(file))
@@ -252,8 +286,12 @@ def main():
 
                         # For Each Region Get Launch Configurations
                         for region in regions:
-                            response = get_launch_configurations(account_id, region, role_credentials)
-                            inventory.append(response)
+                            if args.in_use:
+                                response = get_launch_configurations_in_use(account_id, region, role_credentials)
+                                inventory.append(response)
+                            else:
+                                response = get_launch_configurations(account_id, region, role_credentials)
+                                inventory.append(response)
 
                 # Catch and Store Errors
                 except ClientError as e:
@@ -270,8 +308,12 @@ def main():
 
             # For Each Region Get Launch Configurations
             for region in regions:
-                response = get_launch_configurations(account_id, region, credentials)
-                inventory.append(response)
+                if args.in_use:
+                    response = get_launch_configurations_in_use(account_id, region, credentials)
+                    inventory.append(response)
+                else:
+                    response = get_launch_configurations(account_id, region, credentials)
+                    inventory.append(response)
             
         # Write Outputs
         write_inventory_file(inventory_file, inventory)
