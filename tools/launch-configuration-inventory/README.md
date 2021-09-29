@@ -41,6 +41,8 @@ optional arguments:
 
 ## Script Output
 
+The script will output details as it performs the inventory. You can use these details to review and monitor progress.
+
 ```
 # python3 inventory.py -r arn:aws:iam::ACCOUNT_ID:role/OrganizationAccountAccessRole
 2021-09-28 11:27:59,886 - INFO - Attempting to assume role: arn:aws:iam::ACCOUNT_ID:role/OrganizationAccountAccessRole
@@ -68,7 +70,25 @@ optional arguments:
 2021-09-28 11:28:15,593 - INFO - You have 3 launch configurations across 1 accounts and 17 regions.
 ```
 
+## Errors
+
+If the script encounters any exceptions they will be logged to the output as errors. In most cases the inventory will continue to run (this is useful if you have a role with access to most, but not all, accounts in an Organization).
+
+```
+python3 inventory.py -r arn:aws:iam::ACCOUNT_ID:role/OrganizationAccountAccessRole -o -or OrganizationAccountAccessRole
+2021-09-28 11:54:31,881 - INFO - Attempting to assume role: arn:aws:iam::ACCOUNT_ID:role/OrganizationAccountAccessRole
+2021-09-28 11:54:31,904 - INFO - Found credentials in shared credentials file: ~/.aws/credentials
+2021-09-28 11:54:32,392 - INFO - Getting a list of accounts in this organization.
+2021-09-28 11:54:33,145 - INFO - Inventorying account: SECOND_ACCOUNT_ID
+2021-09-28 11:54:33,145 - INFO - Getting credentials to inventory account: SECOND_ACCOUNT_ID
+2021-09-28 11:54:33,145 - INFO - Attempting to assume role: arn:aws:iam::SECOND_ACCOUNT_ID:role/OrganizationAccountAccessRole
+2021-09-28 11:54:33,584 - INFO - Getting a list of regions enabled for account SECOND_ACCOUNT_ID.
+2021-09-28 11:54:33,810 - ERROR - Error getting list of regions: An error occurred (UnauthorizedOperation) when calling the DescribeRegions operation: You are not authorized to perform this operation.
+```
+
 ## Output File
+
+The inventory outputs to a file named `inventory.csv` by default. You can redirect this to another file by using the -f argument.
 
 ```
 account_id,region,count,launch_configuratons
