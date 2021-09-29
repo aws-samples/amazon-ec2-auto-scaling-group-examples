@@ -300,21 +300,28 @@ def main():
 
         # Inventorying Single Account
         if args.org is False:
-            account_id = boto3.client('sts', **credentials).get_caller_identity().get('Account')
 
-            logger.info('Getting inventory for account {}:'.format(account_id))
+            try: 
+                account_id = boto3.client('sts', **credentials).get_caller_identity().get('Account')
 
-            regions = get_regions(account_id, credentials)
+                logger.info('Getting inventory for account {}:'.format(account_id))
 
-            # For Each Region Get Launch Configurations
-            for region in regions:
-                if args.in_use:
-                    response = get_launch_configurations_in_use(account_id, region, credentials)
-                    inventory.append(response)
-                else:
-                    response = get_launch_configurations(account_id, region, credentials)
-                    inventory.append(response)
-            
+                regions = get_regions(account_id, credentials)
+
+                # For Each Region Get Launch Configurations
+                for region in regions:
+                    if args.in_use:
+                        response = get_launch_configurations_in_use(account_id, region, credentials)
+                        inventory.append(response)
+                    else:
+                        response = get_launch_configurations(account_id, region, credentials)
+                        inventory.append(response)
+
+            except ClientError as e:
+                    message = 'Error getting inventory, check your credential configuration or try with the -r argument: {}'.format(e)
+                    logger.error(message)
+
+
         # Write Outputs
         write_inventory_file(inventory_file, inventory)
         write_summary(inventory)
