@@ -9,6 +9,7 @@ We recommend deploying the following [Example AWS Cloud9 Environment](/environme
 ## Examples
 
 * [Code Samples by Auto Scaling Features](/features)
+    * [Custom Termination Policies](/features/custom-termination-policies)
     * [Lifecycle Hooks](/features/lifecycle-hooks)
     * [Predictive Scaling](/features/predictive-scaling)
     * [Warm Pools](/features/warm-pools)

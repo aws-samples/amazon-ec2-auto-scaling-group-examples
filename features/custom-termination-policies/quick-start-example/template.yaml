@@ -18,7 +18,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   amazon-ec2-autoscaling-custom-termination-policy-quick-start-example
   
-  Sample CloudFormation template that deploys an Auto Scaling Group with a Custom Termination Policy that can be
+  Sample CloudFormation template that deploys an Auto Scaling Group with a custom termination policy that can be
   customized based on your needs.
 
 Parameters:
