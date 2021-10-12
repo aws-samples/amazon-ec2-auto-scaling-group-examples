@@ -8,9 +8,9 @@ We recommend deploying the following [Example AWS Cloud9 Environment](/environme
 
 ## Examples
 
-* [Code Samples by Auto Scaling group Features](/features)
+* [Code Samples by Auto Scaling Features](/features)
     * [Lifecycle Hooks](/features/lifecycle-hooks)
     * [Predictive Scaling](/features/predictive-scaling)
     * [Warm Pools](/features/warm-pools)
-* [Auto Scaling Group Utilities and Tools](/tools)
+* [Auto Scaling Utilities and Tools](/tools)
     * [Launch Configuration Inventory Script](/tools/launch-configuration-inventory)
