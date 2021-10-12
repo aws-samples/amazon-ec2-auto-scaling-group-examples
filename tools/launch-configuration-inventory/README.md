@@ -9,7 +9,7 @@ The simplest way to run this script is to copy it into an [AWS CloudShell](https
 1. Access an [AWS CloudShell Environment](https://docs.aws.amazon.com/cloudshell/latest/userguide/working-with-cloudshell.html)
 2. Copy inventory.py to your local environment.
 ```
-curl -O "https://raw.githubusercontent.com/horsfieldsa/amazon-ec2-auto-scaling-group-examples/launch-configuration-inventory/tools/launch-configuration-inventory/inventory.py"
+curl -O "https://raw.githubusercontent.com/aws-samples/amazon-ec2-auto-scaling-group-examples/main/tools/launch-configuration-inventory/inventory.py"
 ```
 3. Execute the script with the below arguments. See the examples below for some suggestions. For a CloudShell environment you should use the -r ROLE_ARN argument to specific a role to assume, ie: `python3 inventory.py -r arn:aws:iam::[ACCOUNT_ID]:role/[ROLE_NAME]` as the script currently does not support CloudShell's inherited credentials.
 
