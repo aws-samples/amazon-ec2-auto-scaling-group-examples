@@ -1,0 +1,452 @@
+ # Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ #
+ # Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ # software and associated documentation files (the "Software"), to deal in the Software
+ # without restriction, including without limitation the rights to use, copy, modify,
+ # merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ # permit persons to whom the Software is furnished to do so.
+ #
+ # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ # INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+ # PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ # HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  amazon-ec2-autoscaling-custom-termination-policy-quick-start-example
+  
+  Sample CloudFormation template that deploys an Auto Scaling Group with a Custom Termination Policy that can be
+  customized based on your needs.
+
+Parameters:
+  AmiId:
+    Description: AMI Id
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  AutoScalingGroupName:
+    Description: Auto Scaling Group Name
+    Type: String
+    Default: Example Auto Scaling Group
+  AutoScalingGroupMinSize:
+    Description: Minimum Size
+    Type: Number
+    Default: 0
+  AutoScalingGroupMaxSize:
+    Description: Maximum Size
+    Type: Number
+    Default: 10
+  AutoScalingGroupDesiredCapacity:
+    Description: Desired Capacity
+    Type: Number
+    Default: 6
+  InstanceKeyPair: 
+    Description: Amazon EC2 Key Pair
+    Type: "AWS::EC2::KeyPair::KeyName"
+  VpcCIDR: 
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+  AvailabilityZone1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+  AvailabilityZone2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+  AvailabilityZone3CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the third Availability Zone
+    Type: String
+    Default: 10.192.12.0/24
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups:
+    - 
+      Label: 
+        default: "VPC Configuration"
+      Parameters: 
+        - VpcCIDR
+        - AvailabilityZone1CIDR
+        - AvailabilityZone2CIDR
+        - AvailabilityZone3CIDR
+    -
+      Label:
+        default: "Instance Configuration"
+      Parameters:
+        - AmiId
+        - InstanceKeyPair 
+    -
+      Label: 
+        default: "Auto Scaling Group Configuration"
+      Parameters: 
+        - AutoScalingGroupName
+        - AutoScalingGroupVpcID
+        - AutoScalingGroupSubnetIDs
+        - AutoScalingGroupMinSize
+        - AutoScalingGroupMaxSize
+        - AutoScalingGroupDesiredCapacity
+
+Resources:
+
+  # VPC/Networking Resources
+
+  VPC: 
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+          
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+          
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  AvailabilityZoneSubnet1: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone1CIDR
+      MapPublicIpOnLaunch: true
+
+  AvailabilityZoneSubnet2: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone2CIDR
+      MapPublicIpOnLaunch: true
+
+  AvailabilityZoneSubnet3: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone3CIDR
+      MapPublicIpOnLaunch: true
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      VpcId: !Ref VPC
+      GroupDescription: Instance Security Group
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+
+  DefaultPublicRoute: 
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties: 
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  AvailabilityZoneSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet1
+
+  AvailabilityZoneSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet2
+
+  AvailabilityZoneSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet3          
+
+  # Instance/Auto Scaling Group Resources
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref AmiId
+        KeyName: !Ref InstanceKeyPair
+        SecurityGroupIds:
+          - !Ref InstanceSecurityGroup
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - InstanceProfile
+            - Arn
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: CustomTerminationExampleInstance            
+        UserData: 
+          'Fn::Base64': 
+            !Sub 
+              - |- 
+                Content-Type: multipart/mixed; boundary="//"
+                MIME-Version: 1.0
+
+                --//
+                Content-Type: text/cloud-config; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="cloud-config.txt"
+
+                #cloud-config
+                cloud_final_modules:
+                - [scripts-user, always]
+
+                --//
+                Content-Type: text/x-shellscript; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="userdata.txt"
+
+                #!/bin/bash
+                rpm -q stress &> /dev/null
+                if [ $? -ne 0 ]
+                  then
+                    sudo amazon-linux-extras install epel -y
+                    sudo yum install stress -y
+                fi
+                --//
+              - { 
+                  autoScalingGroupName: !Ref AutoScalingGroupName
+                }
+
+  InstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:           
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  InstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - 
+          Ref: "InstanceRole"
+
+  AutoScalingGroup:    
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: !Ref AutoScalingGroupName
+      DesiredCapacity: !Ref AutoScalingGroupDesiredCapacity
+      MaxSize: !Ref AutoScalingGroupMaxSize
+      MinSize: !Ref AutoScalingGroupMinSize
+      MixedInstancesPolicy:
+        InstancesDistribution:
+          OnDemandAllocationStrategy: prioritized
+          OnDemandBaseCapacity: 2
+          OnDemandPercentageAboveBaseCapacity: 0
+          SpotAllocationStrategy: capacity-optimized
+        LaunchTemplate:
+          LaunchTemplateSpecification:
+            LaunchTemplateId: !Ref LaunchTemplate
+            Version: !GetAtt LaunchTemplate.LatestVersionNumber
+          Overrides:
+          - InstanceType: c3.large
+          - InstanceType: c4.large
+          - InstanceType: c5.large
+          - InstanceType: m3.large
+          - InstanceType: m4.large
+          - InstanceType: m5.large
+          - InstanceType: r3.large
+          - InstanceType: r4.large
+          - InstanceType: r5.large
+      VPCZoneIdentifier: 
+        - !Ref AvailabilityZoneSubnet1
+        - !Ref AvailabilityZoneSubnet2
+        - !Ref AvailabilityZoneSubnet3
+
+  CustomTerminationPolicyFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt [ CustomTerminationPolicyFunction, Arn ]
+      Action: lambda:InvokeFunction
+      Principal: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+
+  CustomTerminationPolicyFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: CustomTerminationPolicyFunctionLogsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+
+  CustomTerminationPolicyFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt [ CustomTerminationPolicyFunctionRole, Arn ]
+      Runtime: python3.8
+      Timeout: 600
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          import json
+          import logging
+          import time
+
+          from botocore.exceptions import ClientError
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          cloudwatch = boto3.client('cloudwatch')
+
+          def determine_instances_to_terminate(instances):
+            instances_to_terminate = []
+
+            # TODO: Add Custom Logic to Select Instances
+            for instance in instances:
+                instances_to_terminate.append(instance['InstanceId'])
+
+            return instances_to_terminate
+
+          def lambda_handler(event, context):
+
+            logger.info(event)
+
+            instances = determine_instances_to_terminate(event['Instances'])
+
+            logger.info(instances)
+
+            response = {
+              'InstanceIDs': instances
+            }
+
+            logger.info(response)
+
+            return response
+      Description: Returns instances to terminate during scale-in events.
+
+  CustomTerminationPolicyResourceFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: CustomTerminationPolicyResourceFunctionLogsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+        - PolicyName: CustomTerminationPolicyResourceFunctionUpdateAutoScalingGroupPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - "autoscaling:UpdateAutoScalingGroup"
+                Resource: !Sub "arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${AutoScalingGroupName}"
+
+  CustomTerminationPolicyResource:
+      Type: 'Custom::CustomTerminationPolicyResourceFunction'
+      Properties:
+        ServiceToken: !GetAtt [ CustomTerminationPolicyResourceFunction, Arn ]
+
+  CustomTerminationPolicyResourceFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt [ CustomTerminationPolicyResourceFunctionRole, Arn ]
+      Runtime: python3.8
+      Timeout: 600
+      Environment:
+        Variables:
+          AUTOSCALING_GROUP_NAME: !Ref AutoScalingGroup
+          CUSTOM_TERMINATION_POLICY_LAMBDA_ARN: !GetAtt [ CustomTerminationPolicyFunction, Arn ]
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          import logging
+          import cfnresponse
+
+          from botocore.exceptions import ClientError
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          autoscaling = boto3.client('autoscaling')
+
+          autoscaling_group_name = os.environ['AUTOSCALING_GROUP_NAME']
+          custom_termination_policy_lambda_arn = os.environ['CUSTOM_TERMINATION_POLICY_LAMBDA_ARN']
+
+          def lambda_handler(event, context):
+
+            logger.info(event)
+
+            if event['RequestType'] == 'Create':
+
+              try:
+
+                response = autoscaling.update_auto_scaling_group(
+                    AutoScalingGroupName=autoscaling_group_name,
+                    TerminationPolicies=[
+                        custom_termination_policy_lambda_arn,
+                    ], 
+                )
+
+                logger.info(response)
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, response, "ResponseMetadata")
+
+              except ClientError as e:
+                message = 'Error creating custom termination policy: {}'.format(e)
+                logger.info(message)
+                cfnresponse.send(event, context, cfnresponse.FAILED, message, "ErrorMessage")
+                raise Exception(message)  
+
+            else:
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, event, "ResponseMetadata")
+                       
+            return
+      Description: Creates a custom termination policy during stack creation.
