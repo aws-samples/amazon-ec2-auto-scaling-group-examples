@@ -1,6 +1,6 @@
 # Custom Termination Policy Example: Quick Start Example
 
-This example template demonstrates how to create a [custom termination policy](https://docs.aws.amazon.com/autoscaling/ec2/userguide/lambda-custom-termination-policy.html) for an EC2 Auto Scaling group. This example stack will create a custom termination policy using an AWS Lambda function that Amazon EC2 Auto Scaling invokes in response to certain events. The Lambda function processes the information in the input data sent by Amazon EC2 Auto Scaling and returns a list of instances that are ready to terminate. This example returns all instances as candidates for termination, and can be customized as needed.
+This example template demonstrates how to create a [custom termination policy](https://docs.aws.amazon.com/autoscaling/ec2/userguide/lambda-custom-termination-policy.html) for an EC2 Auto Scaling group. This example stack will create an Auto Scaling group in a new VPC configured with a custom termination policy using an AWS Lambda function that Amazon EC2 Auto Scaling invokes in response to certain events. The Lambda function processes the information in the input data sent by Amazon EC2 Auto Scaling and returns a list of instances that are ready to terminate. This example returns all instances as candidates for termination, and can be customized as needed.
 
 ## Getting Started
 
