@@ -312,6 +312,7 @@ Resources:
 
   CustomTerminationPolicyFunction:
     Type: AWS::Lambda::Function
+    DependsOn: AutoScalingGroup
     Properties:
       Handler: index.lambda_handler
       Role: !GetAtt [ CustomTerminationPolicyFunctionRole, Arn ]
@@ -390,6 +391,7 @@ Resources:
 
   CustomTerminationPolicyResource:
       Type: 'Custom::CustomTerminationPolicyResourceFunction'
+      DependsOn: AutoScalingGroup
       Properties:
         ServiceToken: !GetAtt [ CustomTerminationPolicyResourceFunction, Arn ]
 
@@ -441,6 +443,26 @@ Resources:
 
               except ClientError as e:
                 message = 'Error creating custom termination policy: {}'.format(e)
+                logger.info(message)
+                cfnresponse.send(event, context, cfnresponse.FAILED, message, "ErrorMessage")
+                raise Exception(message)  
+
+            if event['RequestType'] == 'Delete':
+
+              try:
+
+                response = autoscaling.update_auto_scaling_group(
+                    AutoScalingGroupName=autoscaling_group_name,
+                    TerminationPolicies=[
+                        'Default'
+                    ], 
+                )
+
+                logger.info(response)
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, response, "ResponseMetadata")
+
+              except ClientError as e:
+                message = 'Error deleting custom termination policy: {}'.format(e)
                 logger.info(message)
                 cfnresponse.send(event, context, cfnresponse.FAILED, message, "ErrorMessage")
                 raise Exception(message)  
