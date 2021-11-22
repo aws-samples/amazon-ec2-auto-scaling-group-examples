@@ -1,0 +1,628 @@
+# Copyright 2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ #
+ # Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ # software and associated documentation files (the "Software"), to deal in the Software
+ # without restriction, including without limitation the rights to use, copy, modify,
+ # merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ # permit persons to whom the Software is furnished to do so.
+ #
+ # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ # INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+ # PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ # HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  amazon-ec2-autoscaling-predictive-scaling-blue-green-example
+  
+  Sample CloudFormation template that deploys an Auto Scaling group for demonstrating predictive scaling. 
+Parameters:
+  ApplicationAmiId:
+    Description: AMI Id
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  ApplicationAutoScalingGroupName:
+    Description: Application Auto Scaling Group Name
+    Type: String
+    Default: ASG-myapp-v1
+  GreenApplicationAutoScalingGroupName:
+    Description: Application Auto Scaling Group Name
+    Type: String
+    Default: ASG-myapp-v2
+  ApplicationAutoScalingGroupMinSize:
+    Description: Application Auto Scaling Min Size
+    Type: Number
+    Default: 6
+  ApplicationAutoScalingGroupMaxSize:
+    Description: Application Auto Scaling Max Size
+    Type: Number
+    Default: 100
+  ApplicationAutoScalingGroupDesiredCapacity:
+    Description: Application Auto Scaling Desired Capacity
+    Type: Number
+    Default: 6
+  ApplicationInstanceType:
+    Description: Amazon EC2 Instance Type
+    Type: String
+    Default: "m5.large"
+  ApplicationInstanceKeyPair: 
+    Description: Amazon EC2 Key Pair
+    Type: "AWS::EC2::KeyPair::KeyName"
+  LoadAmiId:
+    Description: AMI Id
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  LoadAutoScalingGroupName:
+    Description: Load Auto Scaling Group Name
+    Type: String
+    Default: Example Load Auto Scaling Group
+  LoadAutoScalingGroupMinSize:
+    Description: Load Auto Scaling Group Min Size
+    Type: Number
+    Default: 2
+  LoadAutoScalingGroupMaxSize:
+    Description: Load Auto Scaling Group Max Size
+    Type: Number
+    Default: 10
+  LoadAutoScalingGroupDesiredCapacity:
+    Description: Load Auto Scaling Group Desired Capacity
+    Type: Number
+    Default: 2
+  LoadInstanceType:
+    Description: Amazon EC2 Instance Type
+    Type: String
+    Default: "m5.8xlarge"
+  LoadInstanceKeyPair: 
+    Description: Amazon EC2 Key Pair
+    Type: "AWS::EC2::KeyPair::KeyName"
+  VpcCIDR: 
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+  AvailabilityZone1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+  AvailabilityZone2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+  AvailabilityZone3CIDR:
+    Description: Please enter the IP range (CIDR notation) for the app subnet in the third Availability Zone
+    Type: String
+    Default: 10.192.12.0/24
+  LaunchTemplateName:
+    Description: Please enter the name for the launch template of the application
+    Type: String
+    Default: my-template-bg-blog
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups:
+    - 
+      Label: 
+        default: "VPC Configuration"
+      Parameters: 
+        - VpcCIDR
+        - AvailabilityZone1CIDR
+        - AvailabilityZone2CIDR
+        - AvailabilityZone3CIDR
+    -
+      Label: 
+        default: "Application Auto Scaling Group Configuration"
+      Parameters: 
+        - ApplicationAmiId
+        - ApplicationInstanceType
+        - ApplicationInstanceKeyPair 
+        - ApplicationAutoScalingGroupName
+        - GreenApplicationAutoScalingGroupName
+        - ApplicationAutoScalingGroupVpcID
+        - ApplicationAutoScalingGroupSubnetIDs
+        - ApplicationAutoScalingGroupMinSize
+        - ApplicationAutoScalingGroupMaxSize
+        - ApplicationAutoScalingGroupDesiredCapacity
+    -
+      Label: 
+        default: "Load Generator Auto Scaling Group Configuration"
+      Parameters: 
+        - LoadAmiId
+        - LoadInstanceType
+        - LoadInstanceKeyPair 
+        - LoadAutoScalingGroupName
+        - LoadAutoScalingGroupVpcID
+        - LoadAutoScalingGroupSubnetIDs
+        - LoadAutoScalingGroupMinSize
+        - LoadAutoScalingGroupMaxSize
+        - LoadAutoScalingGroupDesiredCapacity
+Resources:
+
+  # VPC/Networking Resources
+
+  VPC: 
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+          
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+          
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  AvailabilityZoneSubnet1: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone1CIDR
+      MapPublicIpOnLaunch: true
+
+  AvailabilityZoneSubnet2: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone2CIDR
+      MapPublicIpOnLaunch: true
+
+  AvailabilityZoneSubnet3: 
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      CidrBlock: !Ref AvailabilityZone3CIDR
+      MapPublicIpOnLaunch: true
+
+  ApplicationInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      VpcId: !Ref VPC
+      GroupDescription: Application Instance Security Group
+      SecurityGroupIngress:
+        - SourceSecurityGroupId:
+            Ref: ApplicationLoadBalancerSecurityGroup
+          IpProtocol: -1
+        - CidrIp: '0.0.0.0/0'
+          IpProtocol: TCP
+          FromPort: 80
+          ToPort: 80
+        - SourceSecurityGroupId:
+            Ref: LoadInstanceSecurityGroup
+          IpProtocol: -1
+        - CidrIp: '0.0.0.0/0'
+          IpProtocol: TCP
+          FromPort: 80
+          ToPort: 80
+  
+  LoadInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      VpcId: !Ref VPC
+      GroupDescription: Load Instance Security Group
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+
+  DefaultPublicRoute: 
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties: 
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  AvailabilityZoneSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet1
+
+  AvailabilityZoneSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet2
+
+  AvailabilityZoneSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AvailabilityZoneSubnet3          
+
+  # Application Auto Scaling Group Resources
+
+  ApplicationLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Ref LaunchTemplateName  
+      LaunchTemplateData:
+        ImageId: !Ref ApplicationAmiId
+        InstanceType: !Ref ApplicationInstanceType
+        KeyName: !Ref ApplicationInstanceKeyPair
+        SecurityGroupIds:
+          - !Ref ApplicationInstanceSecurityGroup
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - ApplicationInstanceProfile
+            - Arn
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: ScalingApplicationInstance            
+        UserData: 
+          'Fn::Base64': 
+            !Sub 
+              - |- 
+                Content-Type: multipart/mixed; boundary="//"
+                MIME-Version: 1.0
+                --//
+                Content-Type: text/cloud-config; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="cloud-config.txt"
+                #cloud-config
+                cloud_final_modules:
+                - [scripts-user, always]
+                --//
+                Content-Type: text/x-shellscript; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="userdata.txt"
+                #!/bin/bash
+                sudo yum install golang -y
+                
+                cat <<EoF > /tmp/app.go
+                package main
+                import (
+                  "fmt"
+                  "net/http"
+                  "runtime"
+                  "time"
+                  "log"
+                  "html"
+                )
+                func stress() {
+                  n := runtime.NumCPU()
+                  runtime.GOMAXPROCS(n)
+                  quit := make(chan bool)
+                  for i := 0; i < n; i++ {
+                    go func() {
+                      for {
+                        select {
+                        case <-quit:
+                          return
+                        default:
+                        }
+                      }
+                    }()
+                  }
+                  time.Sleep(10 * time.Millisecond)
+                  for i := 0; i < n; i++ {
+                    quit <- true
+                  }
+                }
+                func main() {
+                  http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+                    stress()
+                    fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
+                  })
+                  log.Fatal(http.ListenAndServe(":80", nil))
+                }
+                EoF
+                export GOCACHE="/tmp/.cache/go-build"
+                go build -o /tmp/app /tmp/app.go
+                /tmp/app
+                --//
+              - { 
+                  autoScalingGroupName: !Ref ApplicationAutoScalingGroupName
+                }
+
+  ApplicationInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:           
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  ApplicationInstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - 
+          Ref: "ApplicationInstanceRole"
+
+  ApplicationAutoScalingGroup:    
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: !Ref ApplicationAutoScalingGroupName
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref ApplicationLaunchTemplate
+        Version: !GetAtt ApplicationLaunchTemplate.LatestVersionNumber
+      DesiredCapacity: !Ref ApplicationAutoScalingGroupDesiredCapacity
+      MaxSize: !Ref ApplicationAutoScalingGroupMaxSize
+      MinSize: !Ref ApplicationAutoScalingGroupMinSize
+      MetricsCollection: 
+        - Granularity: "1Minute"
+      VPCZoneIdentifier: 
+        - !Ref AvailabilityZoneSubnet1
+        - !Ref AvailabilityZoneSubnet2
+        - !Ref AvailabilityZoneSubnet3
+      TargetGroupARNs:
+        - Ref: ApplicationTargetGroup
+
+  GreenApplicationAutoScalingGroup:    
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: !Ref GreenApplicationAutoScalingGroupName
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref ApplicationLaunchTemplate
+        Version: !GetAtt ApplicationLaunchTemplate.LatestVersionNumber
+      DesiredCapacity: !Ref ApplicationAutoScalingGroupDesiredCapacity
+      MaxSize: !Ref ApplicationAutoScalingGroupMaxSize
+      MinSize: !Ref ApplicationAutoScalingGroupMinSize
+      MetricsCollection: 
+        - Granularity: "1Minute"
+      VPCZoneIdentifier: 
+        - !Ref AvailabilityZoneSubnet1
+        - !Ref AvailabilityZoneSubnet2
+        - !Ref AvailabilityZoneSubnet3
+      TargetGroupARNs:
+        - Ref: ApplicationTargetGroup
+
+  TargetTrackingScalingCPUUtilization:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: ApplicationAutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 25
+      EstimatedInstanceWarmup: 300
+
+  PredictiveScalingCPUUtilization:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties :
+      AutoScalingGroupName: 
+        Ref: ApplicationAutoScalingGroup
+      PolicyType: PredictiveScaling
+      PredictiveScalingConfiguration:
+        MetricSpecifications:
+          - PredefinedMetricPairSpecification:
+              PredefinedMetricType: ASGCPUUtilization
+            TargetValue: 25
+
+  # Load Auto Scaling Group Resources
+
+  LoadLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref LoadAmiId
+        InstanceType: !Ref LoadInstanceType
+        KeyName: !Ref LoadInstanceKeyPair
+        SecurityGroupIds:
+          - !Ref LoadInstanceSecurityGroup
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - LoadInstanceProfile
+            - Arn
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: ScalingLoadInstance            
+        UserData: 
+          'Fn::Base64': 
+            !Sub 
+              - |- 
+                Content-Type: multipart/mixed; boundary="//"
+                MIME-Version: 1.0
+                --//
+                Content-Type: text/cloud-config; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="cloud-config.txt"
+                #cloud-config
+                cloud_final_modules:
+                - [scripts-user, always]
+                --//
+                Content-Type: text/x-shellscript; charset="us-ascii"
+                MIME-Version: 1.0
+                Content-Transfer-Encoding: 7bit
+                Content-Disposition: attachment; filename="userdata.txt"
+                #!/bin/bash
+                
+                sudo amazon-linux-extras install epel -y
+                sudo yum -y install curl
+                curl -sL https://rpm.nodesource.com/setup_14.x | sudo bash -
+                sudo yum install -y nodejs
+                sudo npm install -g artillery@latest -y
+                sudo artillery dino
+                sudo systemctl start crond
+                sudo systemctl enable crond
+                
+                cat <<EoF > /tmp/recurring-ramp-up-load.yaml
+                config:
+                  target: "http://${applicationLoadBalancerDnsName}"
+                  http:
+                    timeout: 240
+                  phases:
+                    - duration: 300
+                      arrivalRate: 20
+                      name: Warm up
+                    - duration: 600
+                      arrivalRate: 20
+                      rampTo: 200
+                      name: Ramp up load
+                    - duration: 5400
+                      arrivalRate: 200
+                      name: Sustained load
+                    - duration: 900
+                      arrivalRate: 200
+                      rampTo: 20
+                      name: Ramp down load
+                scenarios:
+                  - name: "Get Home Page"
+                    flow:
+                      - get:
+                          url: "/"
+                EoF
+                cat <<EoF > /tmp/recurring-morning-spike.yaml
+                config:
+                  target: "http://${applicationLoadBalancerDnsName}"
+                  http:
+                    timeout: 240
+                  phases:
+                    - duration: 10
+                      arrivalRate: 20
+                      name: Warm up
+                    - duration: 10
+                      arrivalRate: 20
+                      rampTo: 400
+                      name: Ramp up load
+                    - duration: 6280
+                      arrivalRate: 400
+                      name: Sustained load
+                    - duration: 900
+                      arrivalRate: 400
+                      rampTo: 20
+                      name: Ramp down load
+                scenarios:
+                  - name: "Get Home Page"
+                    flow:
+                      - get:
+                          url: "/"
+                EoF
+                crontab<<EoF
+                0 0 * * * MULTICORE=1 ARTILLERY_WORKERS=16 node --max_old_space_size=3092 `which artillery` run /tmp/recurring-ramp-up-load.yaml
+                0 4 * * * MULTICORE=1 ARTILLERY_WORKERS=16 node --max_old_space_size=3092 `which artillery` run /tmp/recurring-ramp-up-load.yaml
+                0 8 * * * MULTICORE=1 ARTILLERY_WORKERS=16 node --max_old_space_size=3092  `which artillery` run /tmp/recurring-morning-spike.yaml
+                0 12 * * * MULTICORE=1 ARTILLERY_WORKERS=16 node --max_old_space_size=3092 `which artillery` run /tmp/recurring-ramp-up-load.yaml
+                0 16 * * * MULTICORE=1 ARTILLERY_WORKERS=16 node --max_old_space_size=3092 `which artillery` run /tmp/recurring-ramp-up-load.yaml
+                0 20 * * * MULTICORE=1 ARTILLERY_WORKERS=16 node --max_old_space_size=3092 `which artillery` run /tmp/recurring-ramp-up-load.yaml
+                EoF
+                --//
+              - { 
+                  applicationLoadBalancerDnsName: !GetAtt ApplicationLoadBalancer.DNSName
+                }
+
+  LoadInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:           
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  LoadInstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - 
+          Ref: "LoadInstanceRole"
+
+  LoadAutoScalingGroup:    
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: !Ref LoadAutoScalingGroupName
+      LaunchTemplate: 
+        LaunchTemplateId: !Ref LoadLaunchTemplate
+        Version: !GetAtt LoadLaunchTemplate.LatestVersionNumber
+      DesiredCapacity: !Ref LoadAutoScalingGroupDesiredCapacity
+      MaxSize: !Ref LoadAutoScalingGroupMaxSize
+      MinSize: !Ref LoadAutoScalingGroupMinSize
+      VPCZoneIdentifier: 
+        - !Ref AvailabilityZoneSubnet1
+        - !Ref AvailabilityZoneSubnet2
+        - !Ref AvailabilityZoneSubnet3
+
+  # Application Load Balancer
+  
+  ApplicationLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB Security Group
+      SecurityGroupIngress:
+      - CidrIp: '0.0.0.0/0'
+        IpProtocol: TCP
+        FromPort: 80
+        ToPort: 80
+      VpcId:
+        Ref: VPC
+  
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+      - Ref: AvailabilityZoneSubnet1
+      - Ref: AvailabilityZoneSubnet2
+      - Ref: AvailabilityZoneSubnet3
+      SecurityGroups:
+      - Ref: ApplicationLoadBalancerSecurityGroup
+  
+  ApplicationLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn:
+        Ref: ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: ApplicationTargetGroup
+  
+  ApplicationTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: ApplicationLoadBalancer
+    Properties:
+      VpcId:
+        Ref: VPC
+      Port: 80
+      Protocol: HTTP
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: 60
+
+Outputs:
+  ApplicationLoadBalancerArn:
+    Description: "Load Balancer Arn"
+    Value: !Ref ApplicationLoadBalancer
+
+  ApplicationTargetGroupArn:
+    Description: "Target Group Arn"
+    Value: !Ref ApplicationTargetGroup
