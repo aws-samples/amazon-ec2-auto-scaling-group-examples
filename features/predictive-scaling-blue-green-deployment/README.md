@@ -20,7 +20,7 @@ Once you've deployed and accessed the [Example AWS Cloud9 Environment](/environm
 1. Change directories to this example.
 
 ```bash
-cd ~/environment/amazon-ec2-auto-scaling-group-examples/features/predictive-scaling-blue-green
+cd ~/environment/amazon-ec2-auto-scaling-group-examples/features/predictive-scaling-blue-green-deployment
 ```
 
 2. Deploy the CloudFormation Stack. You will need to replace `REPLACE_THIS_WITH_YOUR_KEY_PAIR_NAME` with the name of an SSH key in the region you are deploying the example to.
