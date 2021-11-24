@@ -1,0 +1,41 @@
+{
+    "MetricSpecifications": [
+      {
+          "TargetValue": 25,
+          "CustomizedScalingMetricSpecification": {
+              "MetricDataQueries": [
+                  {
+                      "Id": "load_sum",
+                      "Expression": "SUM(SEARCH('{AWS/EC2,AutoScalingGroupName} MetricName=\"CPUUtilization\" ASG-myapp', 'Sum', 300))",
+                      "ReturnData": false
+                  },
+                  {
+                      "Id": "capacity_sum",
+                      "Expression": "SUM(SEARCH('{AWS/AutoScaling,AutoScalingGroupName} MetricName=\"GroupInServiceInstances\" ASG-myapp', 'Average', 300))",
+                      "ReturnData": false
+                  },
+                  {
+                      "Id": "weighted_average",
+                      "Expression": "load_sum / capacity_sum"
+                  }
+              ]
+          },
+          "CustomizedLoadMetricSpecification": {
+              "MetricDataQueries": [
+                  {
+                      "Id": "load_sum",
+                      "Expression": "SUM(SEARCH('{AWS/EC2,AutoScalingGroupName} MetricName=\"CPUUtilization\" ASG-myapp', 'Sum', 3600))"
+                  }
+              ]
+          },
+          "CustomizedCapacityMetricSpecification": {
+              "MetricDataQueries": [
+                  {
+                      "Id": "capacity_sum",
+                      "Expression": "SUM(SEARCH('{AWS/AutoScaling,AutoScalingGroupName} MetricName=\"GroupInServiceInstances\" ASG-myapp', 'Average', 300))"
+                  }
+              ]
+          }
+      }
+    ]
+}
