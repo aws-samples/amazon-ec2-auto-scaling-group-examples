@@ -325,9 +325,10 @@ Resources:
                 }
                 EoF
 
+                export GOPATH="/tmp"
                 export GOCACHE="/tmp/.cache/go-build"
                 go build -o /tmp/app /tmp/app.go
-                /tmp/app
+                sudo /tmp/app
 
                 --//
               - { 
