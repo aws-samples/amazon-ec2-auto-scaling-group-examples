@@ -1,0 +1,11 @@
+schemaVersion: '2.2'
+description: Stresses an EC2 instance
+mainSteps:
+  - name: Stress
+    action: aws:runShellScript
+    inputs:
+      runCommand:
+      - "#!/bin/bash"
+      - sudo yum install -y stress-ng
+      - rand="$(( $RANDOM % 15 + 3 ))m"
+      - stress-ng --matrix 0 -t $rand --times
