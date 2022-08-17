@@ -3,8 +3,8 @@
 This example template demonstrates how to create a [custom termination policy](https://docs.aws.amazon.com/autoscaling/ec2/userguide/lambda-custom-termination-policy.html) for an EC2 Auto Scaling group that uses CloudWatch metric data to select idle instances for termination. The stack will deploy the following resources:
 
 - A VPC that spans the whole region
-- A Lambda function that implements the logic of the custom termination policy
-- An Auto Scaling Group with a target tracking scaling policy, where the target metric is the average CPU consumption
+- A Lambda function that implements the logic of the custom termination policy and defines environment variables for specifying threshold values for the CloudWatch metrics
+- An Auto Scaling Group that uses attribute-based instance type selection (ABS) with a target tracking scaling policy, where the target metric is the average CPU consumption
 - A Launch Template that defines the AMI to use when procuring capacity in the Auto Scaling Group
 - A Systems Manager Document that executes [stress-ng](https://wiki.ubuntu.com/Kernel/Reference/stress-ng) within a shell script
 - A State Manager association that applies the SSM Document to all the instances in the ASG
@@ -40,37 +40,69 @@ Some tips:
   - Navigating to the [State Manager console](https://console.aws.amazon.com/systems-manager/state-manager)
   - Ticking the Association whose Document name is **Stress** and selecting **Apply association now**
 
-## Getting Started
+## Deployment instructions
 
-We recommend deploying the following [Example AWS Cloud9 Environment](/environment/README.md) to get started quickly with this example. Otherwise, you can attempt to run this example using your own environment with the following prerequisites installed.
+The following steps assume that you have Python and [venv](https://docs.python.org/3/library/venv.html) installed in your local machine.
 
-### Prerequisites
+### 1. Cloning the repository
 
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) installed and configured with Administrator credentials.
-
-## Deployment Steps
-
-Once you've deployed and accessed the [Example AWS Cloud9 Environment](/environment/README.md) execute the following steps from within the Example AWS Cloud9 Environment to deploy this example.
-
-1. Change directories to this example:
+Navigate to the directory in your machine where you want the repository to be cloned and execute the following command:
 
 ```bash
-cd ~/environment/amazon-ec2-auto-scaling-group-examples/features/custom-termination-policies/cloudwatch-metrics
+git clone https://github.com/aws-samples/amazon-ec2-auto-scaling-group-examples.git
 ```
 
-2. Deploy the CloudFormation Stack:
+### 2. Creating a virtual environment and installing project dependencies
+
+After cloning this repository, navigate to the `features/custom-termination-policies/metric-based-termination` directory, and execute the following commands:
+
+#### 2.1 Creating the virtual environment
+
+```python
+python3 -m venv .venv
+```
+
+#### 2.2 Installing project dependencies in the virtual environment
+
+```python
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+### 3. Bootstrapping your AWS account
+
+Deploying AWS CDK apps into an AWS environment may require that you provision resources the AWS CDK needs to perform the deployment. These resources include an Amazon S3 bucket for storing files and IAM roles that grant permissions needed to perform deployments. Execute the following command to bootstrap your environment:
 
 ```bash
-aws cloudformation deploy \
-    --template-file template.yaml \
-    --stack-name custom-termination-policy \
-    --capabilities CAPABILITY_IAM
+cdk bootstrap
 ```
 
-## Clean Up
+You can read more about this process [here](https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping.html).
 
-Delete the CloudFormation Stack
+### 4. Deploying using CDK
+
+When deploying you can optionally specify the value for these parameters:
+
+- **ASGName**: name of the Auto Scaling group. The default value is `Example ASG`
+- **MinCapacity**: minimum capacity that the Auto Scaling group has to procure. The default value is `1`
+- **MaxCapacity**: maximum capacity that the Auto Scaling group has to procure. The default value is `6`
+- **DesiredCapacity**: initial capacity that the Auto Scaling group has to procure. The default is `2`
 
 ```bash
-aws cloudformation delete-stack --stack-name custom-termination-policy
+cdk deploy --parameters ASGName=<str value> --parameters MinCapacity=<int value> --parameters MaxCapacity=<int value> --parameters DesiredCapacity=<int value>
 ```
+
+If you don't want to provide a value for any of those parameters you can simply execute the following command:
+
+```bash
+cdk deploy
+```
+
+The deployment process will take roughly **5 minutes** to complete.
+
+### 5. Cleaning up
+
+To delete all the resources created by CDK:
+
+1. Navigate to the **CloudFormation** section in the AWS console.
+2. Select the stack named **MetricBasedTerminationStack** and click on **Delete**.

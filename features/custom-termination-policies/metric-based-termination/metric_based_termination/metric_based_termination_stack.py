@@ -119,7 +119,7 @@ class TerminationPolicyStack(Stack):
         asg_name = CfnParameter(self, "ASGName", type='String', description="ASG Name", default='Example ASG')
         min_capacity = CfnParameter(self, "MinCapacity", type='Number', description="Minimum capacity", default='1')
         max_capacity = CfnParameter(self, "MaxCapacity", type='Number', description="Maximum capacity", default='6')
-        desired_capacity = CfnParameter(self, "DesiredCap", type='Number', description="Desired capacity", default='2')
+        desired_cap = CfnParameter(self, "DesiredCapacity", type='Number', description="Desired capacity", default='2')
 
         # Override the configuration of the Launch Template using Attribute Based Selection (ABS)
         launch_template_property = asg.CfnAutoScalingGroup.LaunchTemplateProperty(
@@ -147,7 +147,7 @@ class TerminationPolicyStack(Stack):
             auto_scaling_group_name=asg_name.value_as_string,
             max_size=max_capacity.value_as_string,
             min_size=min_capacity.value_as_string,
-            desired_capacity=desired_capacity.value_as_string,
+            desired_capacity=desired_cap.value_as_string,
             capacity_rebalance=True,
             termination_policies=[termination_function.function_arn],
             vpc_zone_identifier=vpc.select_subnets().subnet_ids,
