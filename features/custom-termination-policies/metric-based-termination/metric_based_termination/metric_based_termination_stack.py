@@ -14,7 +14,7 @@ from constructs import Construct
 import yaml
 
 
-class TerminationPolicyStack(Stack):
+class MetricBasedTerminationStack(Stack):
     def _create_vpc(self):
         return ec2.Vpc(self, "Vpc",
                        subnet_configuration=[
@@ -45,7 +45,7 @@ class TerminationPolicyStack(Stack):
                                            vpc=vpc)
 
         # Read the UserData from the txt file
-        with open('termination_policy/assets/user_data.txt') as fd:
+        with open('metric_based_termination/assets/user_data.txt') as fd:
             user_data = fd.read()
 
         return ec2.LaunchTemplate(self, 'LaunchTemplate',
@@ -57,7 +57,7 @@ class TerminationPolicyStack(Stack):
 
     def _create_ssm_document(self):
         # Read the document data from the yaml file
-        with open('termination_policy/assets/stress_document.yml') as fd:
+        with open('metric_based_termination/assets/stress_document.yml') as fd:
             content = fd.read()
 
         return ssm.CfnDocument(self, "Document",
@@ -81,10 +81,10 @@ class TerminationPolicyStack(Stack):
         function = _lambda.Function(self, 'Function',
                                     runtime=_lambda.Runtime.PYTHON_3_9,
                                     function_name='customTerminationPolicy',
-                                    code=_lambda.Code.from_asset('termination_policy/assets/func_termination_policy'),
+                                    code=_lambda.Code.from_asset('metric_based_termination/assets/func_termination_policy'),
                                     timeout=Duration.minutes(5),
-                                    handler='index.handler',
-                                    environment={'METRIC_NAME': 'CPUUtilisation',
+                                    handler='index.lambda_handler',
+                                    environment={'METRIC_NAME': 'CPUUtilization',
                                                  'METRIC_THRESHOLD': '3',
                                                  'METRIC_STAT': 'Minimum',
                                                  'METRIC_TIME_WINDOW_IN_MINUTES': '5'}
@@ -159,7 +159,7 @@ class TerminationPolicyStack(Stack):
             ))
 
         # Set a CPU based target tracking scaling policy for the ASG
-        asg.CfnScalingPolicy(
+        scaling_policy = asg.CfnScalingPolicy(
             self, 'ScalingPolicy',
             auto_scaling_group_name=l1_asg.auto_scaling_group_name,
             policy_type='TargetTrackingScaling',
@@ -170,6 +170,7 @@ class TerminationPolicyStack(Stack):
                     predefined_metric_type='ASGAverageCPUUtilization'
                 )
             ))
+        scaling_policy.node.add_dependency(l1_asg)
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)

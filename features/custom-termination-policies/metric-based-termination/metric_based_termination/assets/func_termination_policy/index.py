@@ -4,10 +4,10 @@ import os
 
 # Available metrics: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/viewing_metrics_with_cloudwatch.html
 
-METRIC_NAME = os.getenv('METRIC_NAME')              # Metric of which to retrieve data
-METRIC_THRESHOLD = os.getenv('METRIC_THRESHOLD')    # Value below which an instance is considered idle
-METRIC_STAT = os.getenv('METRIC_STAT')              # Statistic to use when retrieving CloudWatch metric data
-METRIC_TIME_WINDOW_IN_MINUTES = int(                # Time window for retrieving CloudWatch metric data
+METRIC_NAME = os.getenv('METRIC_NAME')                      # Metric of which to retrieve data
+METRIC_THRESHOLD = float(os.getenv('METRIC_THRESHOLD'))     # Value below which an instance is considered idle
+METRIC_STAT = os.getenv('METRIC_STAT')                      # Statistic to use when retrieving CloudWatch metric data
+METRIC_TIME_WINDOW_IN_MINUTES = int(                        # Time window for retrieving CloudWatch metric data
     os.getenv('METRIC_TIME_WINDOW_IN_MINUTES')
 )
 
