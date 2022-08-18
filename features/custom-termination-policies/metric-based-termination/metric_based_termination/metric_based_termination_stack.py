@@ -82,13 +82,12 @@ class TerminationPolicyStack(Stack):
                                     runtime=_lambda.Runtime.PYTHON_3_9,
                                     function_name='customTerminationPolicy',
                                     code=_lambda.Code.from_asset('termination_policy/assets/func_termination_policy'),
-                                    timeout=Duration.minutes(1),
+                                    timeout=Duration.minutes(5),
                                     handler='index.handler',
-                                    environment={'CPU_PERCENTAGE_THRESHOLD': '3',
+                                    environment={'METRIC_NAME': 'CPUUtilisation',
+                                                 'METRIC_THRESHOLD': '3',
                                                  'METRIC_STAT': 'Minimum',
-                                                 'METRIC_TIME_WINDOW_IN_MINUTES': '5',
-                                                 'NETWORK_IN_BYTES': '1024',
-                                                 'NETWORK_OUT_BYTES': '1024'}
+                                                 'METRIC_TIME_WINDOW_IN_MINUTES': '5'}
                                     )
 
         # Grant the function permission to retrieve CloudWatch metrics

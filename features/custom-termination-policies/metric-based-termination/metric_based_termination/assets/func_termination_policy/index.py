@@ -2,28 +2,22 @@ import boto3
 import datetime
 import os
 
-# Values below which an instance is considered idle
-CPU_PERCENTAGE_THRESHOLD = float(os.getenv('CPU_PERCENTAGE_THRESHOLD'))
-NETWORK_OUT_BYTES = float(os.getenv('NETWORK_OUT_BYTES'))
-NETWORK_IN_BYTES = float(os.getenv('NETWORK_IN_BYTES'))
+# Available metrics: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/viewing_metrics_with_cloudwatch.html
 
-# Statistic to use when retrieving CloudWatch metric data
-METRIC_STAT = os.getenv('METRIC_STAT')
+METRIC_NAME = os.getenv('METRIC_NAME')              # Metric of which to retrieve data
+METRIC_THRESHOLD = os.getenv('METRIC_THRESHOLD')    # Value below which an instance is considered idle
+METRIC_STAT = os.getenv('METRIC_STAT')              # Statistic to use when retrieving CloudWatch metric data
+METRIC_TIME_WINDOW_IN_MINUTES = int(                # Time window for retrieving CloudWatch metric data
+    os.getenv('METRIC_TIME_WINDOW_IN_MINUTES')
+)
 
-# Time window for retrieving CloudWatch metric data
-METRIC_TIME_WINDOW_IN_MINUTES = int(os.getenv('METRIC_TIME_WINDOW_IN_MINUTES'))
-
-# Metrics to retrieve from each instance
-# #Available metrics: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/viewing_metrics_with_cloudwatch.html
 METRICS = [
-    'CPUUtilization',
-    'NetworkOut',
-    'NetworkIn'
+    METRIC_NAME
 ]
 
 
 def generate_time_window():
-    """Generates a start time, end time and period for retriving CloudWatch metrics.
+    """Generates a start time, end time and period for retrieving CloudWatch metrics
     """
 
     end_time = datetime.datetime.now()
@@ -36,10 +30,10 @@ def generate_time_window():
 
 
 def get_metric_data(instances, start_time, end_time, period):
-    """Retrieves CloudWatch metrics.
+    """Retrieves CloudWatch metric data
 
     Keyword arguments:
-    instances -- list of instances of which to retrieve the metrics
+    instances -- list with instance information
     start_time -- time stamp that determines the first data point to return
     end_time -- time stamp that determines the last data point to return
     period -- the granularity of the returned data points
@@ -50,15 +44,15 @@ def get_metric_data(instances, start_time, end_time, period):
 
     # Hold the metrics for each instance in the form of:
     # + instanceId1
-    #   + metricName1: metricValue1
-    #   + metricName2: metricValue2
+    #   + metricName1: 0
+    #   + metricName2: 0
     # ...
-    metric_data = {instance_id: {metric_name: 0 for metric_name in METRICS} for instance_id in instances}
+    metric_data = {instance['InstanceId']: {metric_name: 0 for metric_name in METRICS} for instance in instances}
 
-    # List that contains one entry per instance and metric
+    # List that contains one entry per instance and metric used to retrieve CloudWatch metric data
     metric_data_queries = [
         {
-            'Id': '{}{}'.format(instance_id.replace('-', '_'), metric_name),
+            'Id': '{}{}'.format(instance['InstanceId'].replace('-', '_'), metric_name),
             'MetricStat': {
                 'Metric': {
                     'Namespace': 'AWS/EC2',
@@ -66,7 +60,7 @@ def get_metric_data(instances, start_time, end_time, period):
                     'Dimensions': [
                         {
                             'Name': 'InstanceId',
-                            'Value': instance_id
+                            'Value': instance['InstanceId']
                         }
                     ]
                 },
@@ -74,8 +68,8 @@ def get_metric_data(instances, start_time, end_time, period):
                 'Period': period
             },
             'ReturnData': True,
-            'Label': '{}_{}'.format(instance_id, metric_name)
-        } for instance_id in instances for metric_name in METRICS
+            'Label': '{}_{}'.format(instance['InstanceId'], metric_name)
+        } for instance in instances for metric_name in METRICS
     ]
 
     response = paginator.paginate(
@@ -84,6 +78,7 @@ def get_metric_data(instances, start_time, end_time, period):
         EndTime=end_time
     )
 
+    # Process the retrieved metrics and add them to the metric_data dictionary
     for page in response:
         for result in page['MetricDataResults']:
             instance_id = result['Label'].split('_')[0]
@@ -92,36 +87,60 @@ def get_metric_data(instances, start_time, end_time, period):
             if result['Values']:
                 metric_data[instance_id][metric_name] = result['Values'][0]
 
-    return metric_data
+            # Update the list of instances to include the retrieved metrics
+            for instance in instances:
+                if instance['InstanceId'] == instance_id:
+                    instance.update({'Metrics': metric_data[instance_id]})
 
 
-def should_terminate_instance(metrics):
+def should_terminate_instance(instance, capacities):
     """Returns whether an instance should be selected for termination
+    considering an even balancing across AZs
 
     Keyword arguments:
-    metrics -- dictionary with metrics
+    instance -- dictionary with instance data
+    capacities -- dictionary with the suggested number of instances to terminate per availability zone
     """
 
-    return metrics['CPUUtilization'] < CPU_PERCENTAGE_THRESHOLD and \
-           metrics['NetworkOut'] < NETWORK_OUT_BYTES and \
-           metrics['NetworkIn'] < NETWORK_IN_BYTES
+    return instance['Metrics'][METRIC_NAME] < METRIC_THRESHOLD and capacities[instance['AvailabilityZone']] > 0
+
+
+def instances_sorting_func(instance):
+    """Implements the instances sorting logic using CloudWatch metric data
+
+    Keyword arguments:
+    instance -- dictionary with instance data
+    """
+
+    return instance['Metrics'][METRIC_NAME]
 
 
 def lambda_handler(event, context):
     # Generate a time window for retrieving CloudWatch metric data
     start_time, end_time, period = generate_time_window()
 
-    # Extract instance IDs
-    instances = [instance['InstanceId'] for instance in event['Instances']]
-    print('Received instances: {}'.format(', '.join(instances)))
+    print('Received instances: ', event['Instances'])
+
+    # Build a dictionary with the form {AvailabilityZone: capacity}
+    capacities = {capacity['AvailabilityZone']: capacity['Capacity'] for capacity in event['CapacityToTerminate']}
+    instances = event['Instances']
+    instances_to_terminate = []
 
     # Get CloudWatch metric data for every instance in the generated time window
-    metric_data = get_metric_data(instances, start_time, end_time, period)
+    # This method will add a `Metrics` property to every dictionary in the instances variable
+    get_metric_data(instances, start_time, end_time, period)
 
-    # Select instances for termination using the retrieved CloudWatch metric data
-    instances = [instance_id for instance_id, metrics in metric_data.items() if should_terminate_instance(metrics)]
-    print('Selected instances: {}'.format(', '.join(instances)))
+    # Sort the instances in ascending order by their metric values (idle instances first)
+    instances.sort(key=instances_sorting_func)
+
+    # Select instances for termination using capacity information and the retrieved CloudWatch metric data
+    for instance in instances:
+        if should_terminate_instance(instance, capacities):
+            instances_to_terminate.append(instance['InstanceId'])
+            capacities[instance['AvailabilityZone']] -= 1
+
+    print('Selected instances: {}'.format(', '.join(instances_to_terminate)))
 
     return {
-        'InstanceIDs': instances
+        'InstanceIDs': instances_to_terminate
     }
