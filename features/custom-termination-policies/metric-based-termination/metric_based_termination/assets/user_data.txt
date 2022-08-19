@@ -1,0 +1,12 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+
+--==MYBOUNDARY==
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+sudo yum install -y epel-release
+sudo yum install -y stress
+sudo yum install -y stress-ng
+
+--==MYBOUNDARY==--
