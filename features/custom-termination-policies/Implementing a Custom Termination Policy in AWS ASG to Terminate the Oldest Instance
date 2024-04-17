@@ -1,0 +1,85 @@
+**Background:**
+AWS Auto Scaling Groups (ASGs) offer various termination policies, including the OldestInstance policy. However, ASGs prioritize equal distribution of instances across Availability Zones (AZs), which can lead to termination of newer instances in some AZs before older ones in others.
+
+**Needs:**
+Customers require a termination policy that consistently terminates the oldest instance, irrespective of AZ distribution, to ensure predictable scaling and resource management.
+
+**Solution:**
+To address this need, a Lambda function was developed to enforce a custom termination policy. This function uses the EC2 DescribeInstances API to identify the oldest instance in the ASG. A CloudFormation template simplifies deployment, automatically setting up the Lambda function and necessary IAM permissions, thus streamlining the implementation of this custom termination policy.
+
+
+
+```
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: Allow
+                Action:
+                  - 'ec2:DescribeInstances'
+                Resource: '*'
+
+  MyLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          ec2 = boto3.client('ec2')
+
+          def lambda_handler(event, context):
+              logger.info("Received event: {}".format(event))
+              instance_ids = [instance['InstanceId'] for instance in event.get('Instances', [])]
+              logger.info("Instance IDs: {}".format(instance_ids))
+
+              if instance_ids:
+                  instances_descriptions = ec2.describe_instances(InstanceIds=instance_ids)
+                  instances = [i for r in instances_descriptions['Reservations'] for i in r['Instances']]
+                  logger.info("Instances details: {}".format(instances))
+
+                  oldest_instance = sorted(instances, key=lambda x: x['LaunchTime'])[0]['InstanceId']
+                  logger.info("Oldest instance ID: {}".format(oldest_instance))
+
+                  return {'InstanceIDs': [oldest_instance]}
+              else:
+                  logger.info("No instances to process.")
+                  return {'InstanceIDs': []}
+      Runtime: python3.9
+      Timeout: 30
+
+  LambdaInvokePermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt MyLambdaFunction.Arn
+      Principal: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling'
+
+```
+
+Lastly, customer change the termination policy to use the lambda function.
