@@ -14,5 +14,6 @@ We recommend deploying the following [Example AWS Cloud9 Environment](/environme
     * [Predictive Scaling](/features/predictive-scaling)
     * [Predictive Scaling Blue Green Deployment](/features/predictive-scaling-blue-green-deployment)
     * [Warm Pools](/features/warm-pools)
+    * [Faster Target Tracking](/features/faster-target-tracking)
 * [Auto Scaling Utilities and Tools](/tools)
     * [Launch Configuration Inventory Script](/tools/launch-configuration-inventory)

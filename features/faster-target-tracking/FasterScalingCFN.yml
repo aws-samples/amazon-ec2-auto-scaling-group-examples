@@ -1,0 +1,260 @@
+
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This template deploys a demo of Faster Scaling with EC2 Auto Scaling
+Parameters:
+  EnvironmentName:
+    Description: Prefix name to be applied to resources created by this Demo
+    Type: String
+    Default: FasterScalingDemo
+  AMI:
+    Description: AMI to be used, Defaulting to Graviton-based AL2023 (default us-east-1)
+    Type: String
+    Default: ami-02801556a781a4499
+  
+  VpcCIDR:
+    Description: VPC CIDR Block to be Used
+    Type: String
+    Default: 10.0.0.0/16
+  EC2InstanceConnectCIDR:
+    Description: CIDR Block for EC2 Instance Connect feature on the chosen region (default us-east-1)
+    Type: String
+    Default: 18.206.107.24/29
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_VPC
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_IGW
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_RTB
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+  PublicSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet3
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !Select
+        - 0
+        - !Cidr
+          - !GetAtt VPC.CidrBlock
+          - 3
+          - 8
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_PubSubnet1
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !Select
+        - 1
+        - !Cidr
+          - !GetAtt VPC.CidrBlock
+          - 3
+          - 8
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_PubSubnet2
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !Select
+        - 2
+        - !Cidr
+          - !GetAtt VPC.CidrBlock
+          - 3
+          - 8
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_PubSubnet3
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for Faster Scaling demo
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+
+          ToPort: 443
+          CidrIp: !Ref VpcCIDR
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref EC2InstanceConnectCIDR
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_InstanceSG
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${EnvironmentName}_Instances
+      LaunchTemplateData:
+        DisableApiTermination: true
+        ImageId: !Ref AMI
+        SecurityGroupIds:
+          - !GetAtt InstanceSecurityGroup.GroupId
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - InstanceProfile
+            - Arn
+        Monitoring: 
+          Enabled: true
+        MetadataOptions:
+          HttpTokens: required
+        UserData: 
+          Fn::Base64: 
+            !Sub |
+              #!/bin/bash
+              yum install amazon-cloudwatch-agent -y
+              sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:/cw-agent-asg-aggregate-cpu -s
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+            - Key: Name
+              Value: !Sub ${EnvironmentName}_EC2
+
+
+  IAMInstanceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: FasterScalingDemo
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - ec2:DescribeTags
+                  - ssm:GetParameter
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_IAMROLE
+
+
+  InstanceProfile:
+
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref IAMInstanceRole
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: '1'
+      MaxSize: '10'
+      MinSize: '0'
+      VPCZoneIdentifier:   
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      MixedInstancesPolicy:
+        LaunchTemplate:
+          LaunchTemplateSpecification:
+            LaunchTemplateId: !Ref LaunchTemplate
+            Version: !GetAtt LaunchTemplate.LatestVersionNumber
+          Overrides:
+            - InstanceRequirements:
+                VCpuCount:
+                  Min: 2
+                  Max: 4
+                MemoryMiB:
+                  Min: 8192
+                CpuManufacturers:
+                - amazon-web-services
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_ASG
+          PropagateAtLaunch: false
+
+  FasterScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      EstimatedInstanceWarmup: 10
+      TargetTrackingConfiguration:
+        CustomizedMetricSpecification:
+          MetricName: CPUUtilization
+          Namespace: FasterScalingDemo
+          Dimensions: 
+            - Name: AutoScalingGroupName
+              Value: !Ref AutoScalingGroup
+          Statistic: Average
+          Unit: Percent
+          Period: 10
+        TargetValue: 60
+
+  CloudWatchMetricsSSMParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cw-agent-asg-aggregate-cpu
+      Type: String
+      Value: '{"agent":{"metrics_collection_interval":10,"run_as_user":"cwagent"},"metrics":{"force_flush_interval":10,"aggregation_dimensions":[["AutoScalingGroupName"]],"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}"},"namespace":"FasterScalingDemo","metrics_collected":{"cpu":{"drop_original_metrics":["cpu_usage_active"],"measurement":[{"name":"cpu_usage_active","rename":"CPUUtilization"}]}}}}'
+      Tier: Intelligent-Tiering
+      Description: Custom metric specification for CloudWatch Agent
+
