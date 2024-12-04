@@ -259,8 +259,17 @@ def main():
     credentials = None   
     if role_arn:
         credentials = get_credentials_for_role(role_arn, None)
-    else:
+    elif profile_name:
         credentials = get_credentials_for_profile(profile_name)
+    else:
+        session = boto3.Session()
+        session_credentials = session.get_credentials() 
+        credentials = {
+            'aws_access_key_id'     : session_credentials.access_key,
+            'aws_secret_access_key' : session_credentials.secret_key
+        }
+        if hasattr(session_credentials, 'token'):
+            credentials['aws_session_token'] = session_credentials.token
 
     if credentials is not None:
 
