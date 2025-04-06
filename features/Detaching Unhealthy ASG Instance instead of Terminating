@@ -1,0 +1,161 @@
+**Background:**
+AWS Auto Scaling Groups (ASGs) monitor the health of instances and automatically replace unhealthy ones to ensure reliability and availability. This process involves terminating the unhealthy instances and launching new ones as replacements.
+
+
+**Customer Needs:**
+Despite the efficiency of ASGs, there are scenarios where customers need to retain unhealthy instances for post-mortem analysis. For example, if an instance is marked as unhealthy by an Elastic Load Balancer (ELB), an organization might want to investigate the root cause of the failure. Similarly, there might be a need to extract logs or other data from the instance to understand what went wrong.
+
+
+**Current Limitation:**
+ASG's default behavior complicates the retention of unhealthy instances. While lifecycle hooks can delay termination, they only offer a temporary reprieve (up to 2 hours). Extending this period requires continuous API calls (RecordLifecycleActionHeartbeat), which is not an ideal or sustainable solution for long-term retention of unhealthy instances.
+
+
+**Solution:**
+To address this challenge, I have developed a Lambda function that effectively bypasses the automatic replacement of unhealthy instances. The function works by suspending the "Replace Unhealthy" process in the ASG settings. It then monitors the health status of instances in the ASG every minute. Upon detecting an unhealthy instance, the Lambda function detaches it from the ASG, preventing its termination. And automatically launch a new replacement instance. Optionally, it can also notify stakeholders through an SNS notification, providing details of the action taken and the instance affected.
+
+This solution not only preserves the unhealthy instances for thorough investigation but also maintains the integrity and performance of the ASG by ensuring only healthy instances are active and serving traffic.
+
+Lambda needs an IAM role and relevant permissions to work, it also needs EventBridge to trigger lambda every minute. The Lambda can also send SNS message. Configuring the whole solution manually is difficult and not customer-friendly. 
+Further, I wrote a CloudFormation Template that can automatically configure it. Customer just need to provide the ASG name (support multiple ASGs) and SNS topic ARN (Optional). 
+
+
+**Script Limitations:**
+
+Instance Detachment: The script is configured to detach a maximum of 10% of an ASG’s desired capacity or 20 instances, whichever is lower, at a single invocation. This limitation is designed to mitigate the impact on service availability by preventing mass detachment of unhealthy instances.
+
+Health Status Diagnosis: The script does not provide specific reasons why an instance is marked as unhealthy. To diagnose the cause of an instance's health status, review the Elastic Load Balancer (ELB) and EC2 metrics. These metrics can offer insights into the reasons behind the instance's unhealthy state.
+
+
+Here is the CloudFormation Template: 
+
+```
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation template to create a Lambda function with optional SNS topic and schedule it to run every minute using EventBridge to preserve unhealthy ASG instances.'
+
+Parameters:
+  SNSTopicARN:
+    Type: String
+    Default: ''
+    Description: The ARN of the SNS topic for notifications (optional).
+
+  ASGNames:
+    Type: CommaDelimitedList
+    Description: A comma-separated list of Auto Scaling Group names to monitor (Support multiple ASGs).
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - autoscaling:DescribeAutoScalingGroups
+                  - autoscaling:DetachInstances
+                  - autoscaling:SuspendProcesses
+                  - sns:Publish
+                Resource: '*'
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          from datetime import datetime
+          import os
+
+          autoscaling_client = boto3.client('autoscaling')
+          sns_client = boto3.client('sns')
+
+          ASG_NAMES = os.getenv('ASG_NAMES', '').split(',')
+          SNS_TOPIC_ARN = os.getenv('SNS_TOPIC_ARN')
+          MAX_DETACH = 20  # Maximum number of instances to detach at once
+
+          def process_asg(asg_name):
+              response = autoscaling_client.describe_auto_scaling_groups(
+                  AutoScalingGroupNames=[asg_name]
+              )
+              asg = response['AutoScalingGroups'][0]
+              
+              # Check and suspend ReplaceUnhealthy process if not already suspended
+              if 'ReplaceUnhealthy' not in [process['ProcessName'] for process in asg['SuspendedProcesses']]:
+                  autoscaling_client.suspend_processes(
+                      AutoScalingGroupName=asg_name,
+                      ScalingProcesses=['ReplaceUnhealthy']
+                  )
+
+              return [i['InstanceId'] for i in asg['Instances'] if i['HealthStatus'] != 'Healthy'], asg['DesiredCapacity']
+
+          def lambda_handler(event, context):
+              timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+              message_details = []
+
+              for asg_name in ASG_NAMES:
+                  unhealthy_instances, desired_capacity = process_asg(asg_name)
+                  max_detach_by_percent = int(desired_capacity * 0.1)
+                  max_to_detach = min(max_detach_by_percent, MAX_DETACH, len(unhealthy_instances))
+                  to_detach = unhealthy_instances[:max_to_detach]
+
+                  if to_detach:
+                      autoscaling_client.detach_instances(
+                          InstanceIds=to_detach,
+                          AutoScalingGroupName=asg_name,
+                          ShouldDecrementDesiredCapacity=False
+                      )
+                      for instance_id in to_detach:
+                          message_details.append(f"Detached unhealthy instance {instance_id} from ASG {asg_name} at {timestamp}")
+
+              if message_details and SNS_TOPIC_ARN:
+                  sns_message = "\n".join(message_details)
+                  sns_client.publish(
+                      TopicArn=SNS_TOPIC_ARN,
+                      Message=sns_message,
+                      Subject='Unhealthy ASG Instance Detached'
+                  )
+      Runtime: python3.8
+      Timeout: 120
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref SNSTopicARN
+          ASG_NAMES: !Join [",", !Ref ASGNames]
+
+  EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: 'rate(1 minute)'
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: "TargetFunction"
+  
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt EventRule.Arn
+
+Outputs:
+  LambdaFunctionArn:
+    Description: "ARN of the Lambda function"
+    Value: !GetAtt LambdaFunction.Arn
+```
+
+CloudFormation Screenshot:
+![image](https://github.com/aws-samples/amazon-ec2-auto-scaling-group-examples/assets/167259967/d19af432-ca3d-4122-890b-85e7a1e2aca1)
