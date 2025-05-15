@@ -1,7 +1,7 @@
 
 
 AWSTemplateFormatVersion: '2010-09-09'
-Description: This template deploys a demo of Faster Scaling with EC2 Auto Scaling
+Description: This template deploys a demo of Faster Scaling with EC2 Auto Scaling (SOXXXX)
 Parameters:
   EnvironmentName:
     Description: Prefix name to be applied to resources created by this Demo
@@ -123,14 +123,16 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 443
-
-          ToPort: 443
-          CidrIp: !Ref VpcCIDR
-        - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref EC2InstanceConnectCIDR
+          Description: Allows to connect to the EC2 instances through EC2 Instance Connect
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+          Description: Allows EC2 Instance to retrieve software updates and access AWS Resources
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}_InstanceSG
