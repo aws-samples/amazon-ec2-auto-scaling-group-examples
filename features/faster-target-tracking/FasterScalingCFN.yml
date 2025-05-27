@@ -1,7 +1,5 @@
-
-
 AWSTemplateFormatVersion: '2010-09-09'
-Description: This template deploys a demo of Faster Scaling with EC2 Auto Scaling
+Description: This template deploys a demo of Faster Scaling with EC2 Auto Scaling (SOXXXX)
 Parameters:
   EnvironmentName:
     Description: Prefix name to be applied to resources created by this Demo
@@ -11,13 +9,14 @@ Parameters:
     Description: AMI to be used, Defaulting to Graviton-based AL2023 (default us-east-1)
     Type: String
     Default: ami-02801556a781a4499
-  
+
   VpcCIDR:
     Description: VPC CIDR Block to be Used
     Type: String
     Default: 10.0.0.0/16
   EC2InstanceConnectCIDR:
-    Description: CIDR Block for EC2 Instance Connect feature on the chosen region (default us-east-1)
+    Description: CIDR Block for EC2 Instance Connect feature on the chosen region
+      (default us-east-1)
     Type: String
     Default: 18.206.107.24/29
 Resources:
@@ -75,7 +74,9 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
       MapPublicIpOnLaunch: true
       CidrBlock: !Select
         - 0
@@ -90,7 +91,9 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
       MapPublicIpOnLaunch: true
       CidrBlock: !Select
         - 1
@@ -105,7 +108,9 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 2, !GetAZs '' ]
+      AvailabilityZone: !Select
+        - 2
+        - !GetAZs ''
       MapPublicIpOnLaunch: true
       CidrBlock: !Select
         - 2
@@ -123,14 +128,17 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 443
-
-          ToPort: 443
-          CidrIp: !Ref VpcCIDR
-        - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref EC2InstanceConnectCIDR
+          Description: Allows to connect to the EC2 instances through EC2 Instance Connect
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+          Description: Allows EC2 Instance to retrieve software updates and access AWS
+            Resources
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}_InstanceSG
@@ -145,43 +153,39 @@ Resources:
         SecurityGroupIds:
           - !GetAtt InstanceSecurityGroup.GroupId
         IamInstanceProfile:
-          Arn: !GetAtt
-            - InstanceProfile
-            - Arn
-        Monitoring: 
+          Arn: !GetAtt InstanceProfile.Arn
+        Monitoring:
           Enabled: true
         MetadataOptions:
           HttpTokens: required
-        UserData: 
-          Fn::Base64: 
-            !Sub |
-              #!/bin/bash
-              yum install amazon-cloudwatch-agent -y
-              sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:/cw-agent-asg-aggregate-cpu -s
+        UserData: !Base64
+          Fn::Sub: |
+            #!/bin/bash
+            yum install amazon-cloudwatch-agent -y
+            sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c ssm:/cw-agent-asg-aggregate-cpu -s
         TagSpecifications:
           - ResourceType: instance
             Tags:
-            - Key: Name
-              Value: !Sub ${EnvironmentName}_EC2
-
+              - Key: Name
+                Value: !Sub ${EnvironmentName}_EC2
 
   IAMInstanceRole:
-    Type: 'AWS::IAM::Role'
+    Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
               Service:
                 - ec2.amazonaws.com
             Action:
-              - 'sts:AssumeRole'
+              - sts:AssumeRole
       Path: /
       Policies:
         - PolicyName: FasterScalingDemo
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
@@ -193,10 +197,9 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}_IAMROLE
 
-
   InstanceProfile:
 
-    Type: 'AWS::IAM::InstanceProfile'
+    Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
       Roles:
@@ -208,7 +211,7 @@ Resources:
       DesiredCapacity: '1'
       MaxSize: '10'
       MinSize: '0'
-      VPCZoneIdentifier:   
+      VPCZoneIdentifier:
         - !Ref PublicSubnet1
         - !Ref PublicSubnet2
         - !Ref PublicSubnet3
@@ -225,7 +228,7 @@ Resources:
                 MemoryMiB:
                   Min: 8192
                 CpuManufacturers:
-                - amazon-web-services
+                  - amazon-web-services
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}_ASG
@@ -241,7 +244,7 @@ Resources:
         CustomizedMetricSpecification:
           MetricName: CPUUtilization
           Namespace: FasterScalingDemo
-          Dimensions: 
+          Dimensions:
             - Name: AutoScalingGroupName
               Value: !Ref AutoScalingGroup
           Statistic: Average
@@ -257,4 +260,3 @@ Resources:
       Value: '{"agent":{"metrics_collection_interval":10,"run_as_user":"cwagent"},"metrics":{"force_flush_interval":10,"aggregation_dimensions":[["AutoScalingGroupName"]],"append_dimensions":{"AutoScalingGroupName":"${aws:AutoScalingGroupName}"},"namespace":"FasterScalingDemo","metrics_collected":{"cpu":{"drop_original_metrics":["cpu_usage_active"],"measurement":[{"name":"cpu_usage_active","rename":"CPUUtilization"}]}}}}'
       Tier: Intelligent-Tiering
       Description: Custom metric specification for CloudWatch Agent
-
