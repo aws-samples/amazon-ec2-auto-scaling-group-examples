@@ -92,6 +92,10 @@ def get_credentials_for_profile(profile_name):
             'aws_access_key_id'     : session_credentials.access_key,
             'aws_secret_access_key' : session_credentials.secret_key
         }
+        
+        if hasattr(session_credentials, 'token'):
+            credentials['aws_session_token'] = session_credentials.token
+        
         return credentials
 
     except Exception as e:
