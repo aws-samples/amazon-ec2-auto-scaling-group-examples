@@ -90,7 +90,8 @@ def get_credentials_for_profile(profile_name):
         session_credentials = session.get_credentials() 
         credentials = {
             'aws_access_key_id'     : session_credentials.access_key,
-            'aws_secret_access_key' : session_credentials.secret_key
+            'aws_secret_access_key' : session_credentials.secret_key,
+            'aws_session_token'     : session_credentials.token
         }
         return credentials
 
